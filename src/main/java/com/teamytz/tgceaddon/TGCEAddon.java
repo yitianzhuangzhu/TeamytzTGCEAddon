@@ -21,7 +21,7 @@ import net.minecraft.util.ResourceLocation;
 import org.apache.logging.log4j.Logger;
 
 /**
- * 科技枪社区版扩展Mod主类
+ * Mod主类
  * 提供新武器、材料和配方
  */
 @Mod(modid = TGCEAddon.MODID,
