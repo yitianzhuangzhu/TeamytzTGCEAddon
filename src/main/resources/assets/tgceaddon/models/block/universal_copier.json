@@ -1,0 +1,12 @@
+{
+    "parent": "techguns:block/machines/basic_machine",
+    "textures": {
+        "particle": "tgceaddon:blocks/universal_copier_side",
+        "down": "tgceaddon:blocks/universal_copier_bottom",
+        "up": "tgceaddon:blocks/universal_copier_top",
+        "north": "tgceaddon:blocks/universal_copier_front",
+        "south": "tgceaddon:blocks/universal_copier_side",
+        "east": "tgceaddon:blocks/universal_copier_side",
+        "west": "tgceaddon:blocks/universal_copier_side"
+    }
+}

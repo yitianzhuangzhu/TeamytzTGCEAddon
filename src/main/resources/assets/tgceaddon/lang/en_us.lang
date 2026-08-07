@@ -1,0 +1,14 @@
+item.tgceaddon.test_pistol.name=Test Pistol
+item.tgceaddon.chainsword.name=Chainsword
+item.tgceaddon.bolter.name=Bolter
+item.tgceaddon.pure_mandate.name=Pure Mandate
+item.tgceaddon.thunderhammer.name=Thunder Hammer
+item.tgceaddon.powersword.name=Power Sword
+item.tgceaddon.storm_shield.name=Storm Shield
+item.tgceaddon.blueprint.name=Blueprint
+item.techguns.bolts.name=Bolt
+item.techguns.boltermagazine.name=Bolt Magazine
+item.techguns.boltermagazineempty.name=Empty Bolt Magazine
+tile.tgceaddon.wall_turret.name=Wall Turret
+tile.tgceaddon.universal_copier.name=Universal Copier
+container.tgceaddon.universal_copier=Universal Copier

@@ -1,0 +1,14 @@
+item.tgceaddon.test_pistol.name=测试手枪
+item.tgceaddon.chainsword.name=链锯剑
+item.tgceaddon.bolter.name=爆弹枪
+item.tgceaddon.pure_mandate.name=纯洁印记
+item.tgceaddon.thunderhammer.name=雷霆锤
+item.tgceaddon.powersword.name=动力剑
+item.tgceaddon.storm_shield.name=风暴盾牌
+item.tgceaddon.blueprint.name=蓝图
+item.techguns.bolts.name=爆弹
+item.techguns.boltermagazine.name=爆弹弹夹
+item.techguns.boltermagazineempty.name=空爆弹弹夹
+tile.tgceaddon.wall_turret.name=墙面炮塔
+tile.tgceaddon.universal_copier.name=通用复制机
+container.tgceaddon.universal_copier=通用复制机
