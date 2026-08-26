@@ -21,7 +21,7 @@ import net.minecraft.util.ResourceLocation;
 import org.apache.logging.log4j.Logger;
 
 /**
- * Mod主类
+ * 科技枪社区版扩展Mod主类
  * 提供新武器、材料和配方
  */
 @Mod(modid = TGCEAddon.MODID,
@@ -36,7 +36,7 @@ public class TGCEAddon
 {
     public static final String MODID = "tgceaddon";
     public static final String NAME = "Tech Guns Community Edition Addon";
-    public static final String VERSION = "0.6.1";
+    public static final String VERSION = "0.10.18";
 
     @Mod.Instance(MODID)
     public static TGCEAddon instance;
@@ -71,6 +71,10 @@ public class TGCEAddon
         // 注册 TileEntity
         GameRegistry.registerTileEntity(UniversalCopierTileEnt.class,
             new ResourceLocation(MODID, "universal_copier"));
+        GameRegistry.registerTileEntity(com.teamytz.tgceaddon.tileentities.TurretBaseTileEntMaster.class,
+            new ResourceLocation(MODID, "turret_base_master"));
+        GameRegistry.registerTileEntity(com.teamytz.tgceaddon.tileentities.TurretBaseTileEntSlave.class,
+            new ResourceLocation(MODID, "turret_base_slave"));
 
         // 初始化实体
         ModEntities.init();

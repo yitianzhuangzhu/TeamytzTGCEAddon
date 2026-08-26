@@ -1,0 +1,6 @@
+{
+    "variants": {
+        "formed=false": { "model": "tgceaddon:turret_plate" },
+        "formed=true": { "model": "tgceaddon:empty" }
+    }
+}

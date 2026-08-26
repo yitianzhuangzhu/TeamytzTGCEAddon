@@ -2,8 +2,10 @@ package com.teamytz.tgceaddon.init;
 
 import com.teamytz.tgceaddon.TGCEAddon;
 import com.teamytz.tgceaddon.item.ItemBlueprint;
+import com.teamytz.tgceaddon.item.ItemCannonShell;
 import com.teamytz.tgceaddon.item.ItemPureMandate;
 import com.teamytz.tgceaddon.item.ItemStormShield;
+import com.teamytz.tgceaddon.item.ItemTurretCard;
 import com.teamytz.tgceaddon.item.weapon.ItemTestPistol;
 import com.teamytz.tgceaddon.item.weapon.ItemChainsword;
 import com.teamytz.tgceaddon.item.weapon.ItemBolter;
@@ -47,6 +49,10 @@ public class ModItems
     public static Item stormshield;
     // 蓝图物品 - 用于通用复制机
     public static Item blueprint;
+    // 炮塔卡片 - 放入炮塔控制器生成炮塔实体
+    public static Item turretCard;
+    // 机炮炮弹 - BMPT 炮塔机炮弹药，在弹药输入槽被消耗
+    public static Item cannonShell;
 
     public static void init()
     {
@@ -67,6 +73,10 @@ public class ModItems
         stormshield = registerItem(new ItemStormShield("storm_shield"));
         // 注册蓝图物品
         blueprint = registerItem(new ItemBlueprint("blueprint"));
+        // 注册炮塔卡片
+        turretCard = registerItem(new ItemTurretCard("turret_card"));
+        // 注册机炮炮弹
+        cannonShell = registerItem(new ItemCannonShell("cannon_shell"));
     }
 
     @SubscribeEvent
@@ -119,6 +129,16 @@ public class ModItems
                 // 所有蓝图物品使用同一个模型
                 ModelLoader.setCustomModelResourceLocation(item, 0,
                     new ModelResourceLocation(TGCEAddon.MODID + ":blueprint", "inventory"));
+            }
+            else if (item instanceof ItemTurretCard)
+            {
+                ModelLoader.setCustomModelResourceLocation(item, 0,
+                    new ModelResourceLocation(TGCEAddon.MODID + ":turret_card", "inventory"));
+            }
+            else if (item instanceof ItemCannonShell)
+            {
+                ModelLoader.setCustomModelResourceLocation(item, 0,
+                    new ModelResourceLocation(TGCEAddon.MODID + ":cannon_shell", "inventory"));
             }
         }
     }
