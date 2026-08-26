@@ -1,0 +1,30 @@
+# Gradle
+.gradle/
+build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+bin/
+.settings/
+.classpath
+.project
+
+# 运行时
+run/
+
+# 临时反编译对比工作区
+.tmp_cmp/
+
+# 第三方依赖资源（从 techguns mod 包解压，构建时可重新获取）
+libs/
+assets/
+
+# 构建/调试产物
+compile.log
+ammop.txt
+
+# 系统文件
+Thumbs.db
+Desktop.ini

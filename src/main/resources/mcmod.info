@@ -1,0 +1,16 @@
+[
+{
+  "modid": "tgceaddon",
+  "name": "Tech Guns Community Edition Addon",
+  "description": "An addon for Tech Guns Community Edition that adds new weapons, materials, and recipes by TeamYTZ.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "https://github.com/yourusername/tgceaddon",
+  "updateUrl": "",
+  "authorList": ["ytzzhu"],
+  "credits": "Thanks to the Tech Guns team for creating the original mod",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": ["required-after:techguns"]
+}
+]
