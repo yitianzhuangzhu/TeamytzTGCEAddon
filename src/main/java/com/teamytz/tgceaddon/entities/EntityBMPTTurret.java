@@ -98,6 +98,15 @@ public class EntityBMPTTurret extends EntityCreature {
      */
     private float turretPitch = 0.0F;
 
+    /**
+     * 服务端累积水平角（平滑瞄准用）。
+     * 与 turretPitch 同病：1.12.2 的 LookHelper 体系每 tick 把 rotationYawHead 也清零
+     * （0.10.27 日志实证：aimYaw 在 -233°~+36° 大幅变化，而 yawHead 恒 ±6.0 =
+     * approachAngle(0, aimYaw, 6) 每 tick 只走一步；仅当 |aimYaw|<6 时才跟随）。
+     * 这里用独立字段累积，每 tick 计算后写回 rotationYawHead（弹道/渲染/同步读它）。
+     */
+    private float turretYaw = 0.0F;
+
     // ===== 客户端帧级补间状态（仅客户端渲染使用；服务端这些字段无意义，保持默认即可）=====
     // MC 服务端转向是 tick 粒度的（rotationYawHead 每 0.05s 跳一次），即使渲染用
     // prev+partialTicks 插值，20tps 的阶梯感依然存在（用户反馈"一卡一卡"）。
@@ -265,18 +274,22 @@ public class EntityBMPTTurret extends EntityCreature {
             // 炮塔僵在原地；而"只要有目标就持续转头"是预期行为，与开火条件分离。
             // 弃用 LookHelper：实测 1.12.2 的 LookHelper 在 living 实体上 yaw 正常
             // 但 pitch 卡住不动（reqPitch=-34 时 rotationPitch 一直 -8）。
-            // 注意 pitch 不能用 rotationPitch 累积：EntityLookHelper.onUpdateLook()
-            // 每 tick 清零它，approachAngle 永远只走一步；用独立字段 turretPitch 累积，
-            // 计算完写回 rotationPitch（弹道 getMuzzlePos / 渲染 getTurretPitch 读它）。
+            // 注意 pitch/yawHead 都不能直接用 rotationPitch/rotationYawHead 累积：
+            // 1.12.2 的 LookHelper 体系每 tick 清零它们（rotationPitch 由
+            // EntityLookHelper.onUpdateLook() 清零，yawHead 同样被外部清零），
+            // approachAngle 永远只走一步；用独立字段 turretPitch/turretYaw 累积，
+            // 计算完写回 rotationPitch/rotationYawHead（弹道 getMuzzlePos / 渲染 / 同步读它们）。
             float aimYaw = (float) (MathHelper.atan2(tgt.posZ - this.posZ,
                     tgt.posX - this.posX) * 180.0D / Math.PI) - 90.0F;
-            this.rotationYawHead = approachAngle(this.rotationYawHead, aimYaw, 6.0F);
+            this.turretYaw = approachAngle(this.turretYaw, aimYaw, 6.0F);
+            this.rotationYawHead = this.turretYaw;
             this.turretPitch = MathHelper.clamp(
                     approachAngle(this.turretPitch, getRequiredPitch(tgt), 8.0F),
                     -PITCH_MAX_UP, PITCH_MAX_DOWN);
             this.rotationPitch = this.turretPitch;
         } else {
-            this.rotationYawHead = lerpAngle(this.rotationYawHead, this.rotationYaw, 0.15F);
+            this.turretYaw = lerpAngle(this.turretYaw, this.rotationYaw, 0.15F);
+            this.rotationYawHead = this.turretYaw;
             this.turretPitch = lerpFloat(this.turretPitch, 0.0F, 0.15F);
             this.rotationPitch = this.turretPitch;
         }
@@ -301,6 +314,7 @@ public class EntityBMPTTurret extends EntityCreature {
                     + " energy=" + master.getEnergyStorage().getEnergyStored()
                     + " redstone=" + redstoneOk
                     + " yawHead=" + this.rotationYawHead + " pitch=" + this.rotationPitch
+                    + " turretYaw=" + this.turretYaw
                     + " yaw=" + this.rotationYaw);
         }
     }
@@ -390,10 +404,11 @@ public class EntityBMPTTurret extends EntityCreature {
         // 2) 加回 gun(0,8,0) 与 main(0,14,0) 的平移 -> 相对实体原点的模型坐标
         float my3 = my2 + 22.0F;
         float mz3 = mz2;
-        // 3) 水平旋转：渲染器 rotate(180 - yawHead)，scale(1,-1,1) 翻转不影响 x/z
+        // 3) 水平旋转：渲染器 rotate(180 - yawHead)，scale(1,-1,1) 翻转不影响 x/z。
+        //    用 turretYaw（服务端累积平滑值）；rotationYawHead 每 tick 被 lookHelper 体系清零，不可用
         float dx = mx / 16.0F;
         float dz = mz3 / 16.0F;
-        float angle = (float) Math.toRadians(180.0F - this.rotationYawHead);
+        float angle = (float) Math.toRadians(180.0F - this.turretYaw);
         float cos = MathHelper.cos(angle);
         float sin = MathHelper.sin(angle);
         float wx = dx * cos + dz * sin;
@@ -421,8 +436,9 @@ public class EntityBMPTTurret extends EntityCreature {
             return false;
         }
         // 弹道方向：GenericProjectile 构造读 shooter.rotationYawHead/rotationPitch 算方向，
-        // 而 lookHelper 每 tick 已把 rotationPitch 清零（AI 阶段在 super.onUpdate() 内部执行），
-        // 构造子弹前写回累积俯仰角，保证机炮弹道带正确的仰角/俯角
+        // 而 LookHelper 体系每 tick 已把两者清零（AI 阶段在 super.onUpdate() 内部执行），
+        // 构造子弹前写回累积角，保证机炮弹道带正确的水平角/仰俯角
+        this.rotationYawHead = this.turretYaw;
         this.rotationPitch = this.turretPitch;
         CannonShellProjectile bullet = new CannonShellProjectile(this.world, this,
                 12.0f, 1.0f, 100, 0.05f, 30, 40, 8.0f, 0.25f, false, EnumBulletFirePos.CENTER);
@@ -452,7 +468,8 @@ public class EntityBMPTTurret extends EntityCreature {
         if (!master.consumeRocketAmmo()) {
             return false;
         }
-        // 同 fireCannon：GenericProjectile 构造读 shooter.rotationPitch，写回累积俯仰角
+        // 同 fireCannon：GenericProjectile 构造读 shooter.rotationYawHead/rotationPitch，写回累积角
+        this.rotationYawHead = this.turretYaw;
         this.rotationPitch = this.turretPitch;
         GuidedMissileProjectile rocket = new GuidedMissileProjectile(this.world, this,
                 12.0f, 1.0f, 100, 0.05f, 30, 40, 8.0f, 0.25f, false,
@@ -640,8 +657,9 @@ public class EntityBMPTTurret extends EntityCreature {
             // 炮口对准检查：炮塔转向是限速的（水平 6°/tick），转动过程中不开火，
             // 否则弹道会随炮塔扫出去（扫射）。水平/俯仰都进入容差后才允许开火
             float targetYaw = (float) (MathHelper.atan2(target.posZ - this.turret.posZ, target.posX - this.turret.posX) * 180.0D / Math.PI) - 90.0F;
-            // 对准检查用 turret.turretPitch（服务端累积值）；rotationPitch 每 tick 被 lookHelper 清零
-            if (Math.abs(MathHelper.wrapDegrees(this.turret.rotationYawHead - targetYaw)) > YAW_ALIGN_TOLERANCE
+            // 对准检查用 turret.turretPitch/turret.turretYaw（服务端累积值）；
+            // rotationPitch/rotationYawHead 每 tick 被 lookHelper 体系清零
+            if (Math.abs(MathHelper.wrapDegrees(this.turret.turretYaw - targetYaw)) > YAW_ALIGN_TOLERANCE
                     || Math.abs(MathHelper.wrapDegrees(this.turret.turretPitch - requiredPitch)) > PITCH_ALIGN_TOLERANCE) {
                 resetFireState();
                 return;
