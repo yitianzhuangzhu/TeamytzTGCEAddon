@@ -282,12 +282,21 @@ public class EntityBMPTTurret extends EntityCreature {
         }
         // 每 tick 同步俯仰角到 dataManager（绕开 HeadLook/Look 交替发送导致的 pitch 严重滞后）
         this.dataManager.set(TURRET_PITCH, this.turretPitch);
-        // 服务端低频日志：确认索敌/朝向/能量是否在工作
-        if (this.ticksExisted % 100 == 0) {
+        // 服务端日志（每 20 tick≈1 秒）：确认索敌/朝向/能量是否在工作。
+        // aimYaw=目标相对方向（转向目标值）。若 aimYaw 大幅变化而 yawHead 恒 6.0/0.0，
+        // 说明 yawHead 每 tick 被外部清零（approachAngle 只走一步），需查清零源；
+        // 若 aimYaw 与 yawHead 同步变化，说明转向正常。
+        if (this.ticksExisted % 20 == 0) {
             EntityLivingBase t2 = this.getAttackTarget();
+            float aimYawLog = 0.0F;
+            if (t2 != null) {
+                aimYawLog = (float) (MathHelper.atan2(t2.posZ - this.posZ,
+                        t2.posX - this.posX) * 180.0D / Math.PI) - 90.0F;
+            }
             TGCEAddon.getLogger().info("[debug][BMPT实体] server tick=" + this.ticksExisted
                     + " target=" + (t2 != null ? t2.getName() : "null")
                     + " dist=" + (t2 != null ? MathHelper.sqrt(t2.getDistanceSq(this)) : 0)
+                    + " aimYaw=" + aimYawLog
                     + " reqPitch=" + (t2 != null ? getRequiredPitch(t2) : 0.0F)
                     + " energy=" + master.getEnergyStorage().getEnergyStored()
                     + " redstone=" + redstoneOk
