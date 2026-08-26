@@ -2,13 +2,17 @@ package com.teamytz.tgceaddon.proxy;
 
 import com.teamytz.tgceaddon.TGCEAddon;
 import com.teamytz.tgceaddon.client.models.armor.ModelStormShield;
+import com.teamytz.tgceaddon.client.render.entities.RenderBMPTTurret;
 import com.teamytz.tgceaddon.client.render.entities.projectiles.RenderBoltProjectile;
+import com.teamytz.tgceaddon.client.render.entities.projectiles.RenderCannonShellProjectile;
 import com.teamytz.tgceaddon.client.render.item.RenderBolter;
 import com.teamytz.tgceaddon.client.render.item.RenderChainsword;
 import com.teamytz.tgceaddon.client.render.item.RenderThunderHammer;
 import com.teamytz.tgceaddon.client.render.item.RenderPowerSword;
 import com.teamytz.tgceaddon.client.render.item.RenderStormShield;
+import com.teamytz.tgceaddon.entities.EntityBMPTTurret;
 import com.teamytz.tgceaddon.entities.projectiles.BoltProjectile;
+import com.teamytz.tgceaddon.entities.projectiles.CannonShellProjectile;
 import com.teamytz.tgceaddon.init.ModItems;
 import com.teamytz.tgceaddon.item.ItemStormShield;
 import com.teamytz.tgceaddon.item.weapon.ItemChainsword;
@@ -33,6 +37,10 @@ public class ClientProxy extends CommonProxy
     public void preInit(FMLPreInitializationEvent event)
     {
         super.preInit(event);
+        // 注册炮塔基座 TESR（master 形成后渲染炮塔底座大模型）
+        net.minecraftforge.fml.client.registry.ClientRegistry.bindTileEntitySpecialRenderer(
+                com.teamytz.tgceaddon.tileentities.TurretBaseTileEntMaster.class,
+                new com.teamytz.tgceaddon.client.render.tileentities.RenderTurretBase());
         // registerEntityRenderers() 在父类中被调用
     }
     
@@ -41,6 +49,10 @@ public class ClientProxy extends CommonProxy
         TGCEAddon.getLogger().info("注册实体渲染器...");
         // 注册爆弹投射物渲染器
         RenderingRegistry.registerEntityRenderingHandler(BoltProjectile.class, RenderBoltProjectile::new);
+        // 注册机炮炮弹投射物渲染器
+        RenderingRegistry.registerEntityRenderingHandler(CannonShellProjectile.class, RenderCannonShellProjectile::new);
+        // 注册 BMPT 炮塔实体渲染器
+        RenderingRegistry.registerEntityRenderingHandler(EntityBMPTTurret.class, RenderBMPTTurret::new);
         TGCEAddon.getLogger().info("实体渲染器注册完成");
     }
     

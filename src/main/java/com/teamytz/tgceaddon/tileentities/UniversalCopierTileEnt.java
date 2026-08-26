@@ -2,6 +2,7 @@ package com.teamytz.tgceaddon.tileentities;
 
 import com.teamytz.tgceaddon.TGCEAddon;
 import com.teamytz.tgceaddon.init.ModAmmoTypes;
+import com.teamytz.tgceaddon.init.ModItems;
 import com.teamytz.tgceaddon.item.ItemBlueprint;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
@@ -41,6 +42,10 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
     // 爆弹生产：100RF/tick × 100tick = 10000RF，每次产出10发
     public static final int BOLT_POWER_PER_TICK = 100;
     public static final int BOLT_OUTPUT_COUNT = 10;
+    // 机炮炮弹生产：120RF/tick × 40tick = 4800RF，每次产出16发（比默认快2.5倍）
+    public static final int CANNON_SHELL_POWER_PER_TICK = 120;
+    public static final int CANNON_SHELL_OUTPUT_COUNT = 16;
+    public static final int CANNON_SHELL_CRAFT_TIME = 40;
 
     // ===== NBT 标签键名 =====
     private static final String TAG_REGISTERED_TARGETS = "RegisteredTargets";
@@ -72,7 +77,9 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
 
             @Override
             protected boolean allowExtractFromSlot(int slot, int amount) {
-                return slot == SLOT_BLUEPRINT || slot == SLOT_OUTPUT;
+                // 仅输出槽可被外部(管道/漏斗)提取；蓝图槽禁止提取，防止循环管道抽走蓝图
+                // 注：GUI 玩家取蓝图走 SlotBlueprintInput.extractWithoutCheck，不受此限制
+                return slot == SLOT_OUTPUT;
             }
         };
     }
@@ -258,6 +265,9 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
             if (isBoltAmmo(output)) {
                 return BOLT_POWER_PER_TICK;
             }
+            if (isCannonShell(output)) {
+                return CANNON_SHELL_POWER_PER_TICK;
+            }
         }
         return POWER_PER_TICK;
     }
@@ -273,10 +283,28 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
     }
 
     /**
+     * 判断目标物品是否为机炮炮弹
+     */
+    private boolean isCannonShell(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        return stack.getItem() == ModItems.cannonShell;
+    }
+
+    /**
      * 获取目标物品的产出数量
      */
     private int getOutputCount(ItemStack target) {
-        return isBoltAmmo(target) ? BOLT_OUTPUT_COUNT : 1;
+        if (isBoltAmmo(target)) return BOLT_OUTPUT_COUNT;
+        if (isCannonShell(target)) return CANNON_SHELL_OUTPUT_COUNT;
+        return 1;
+    }
+
+    /**
+     * 获取目标物品的生产时长（tick）
+     */
+    private int getCraftTime(ItemStack target) {
+        if (isCannonShell(target)) return CANNON_SHELL_CRAFT_TIME;
+        return CRAFT_TIME;
     }
 
     @Override
@@ -304,7 +332,7 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
         // 开始生产
         this.currentOperation = new MachineOperation(target.copy());
         this.progress = 0;
-        this.totaltime = CRAFT_TIME;
+        this.totaltime = getCraftTime(target);
 
         if (!this.world.isRemote) {
             this.needUpdate();

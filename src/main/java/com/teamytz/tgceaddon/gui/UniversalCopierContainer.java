@@ -34,8 +34,9 @@ public class UniversalCopierContainer extends BasicMachineContainer {
         IItemHandler inventory = ent.getCapability(CapabilityItemHandler.ITEM_HANDLER_CAPABILITY, EnumFacing.SOUTH);
 
         if (inventory instanceof ItemStackHandlerPlus) {
-            this.addSlotToContainer(new SlotBlueprintInput(inventory, UniversalCopierTileEnt.SLOT_BLUEPRINT, SLOT_BLUEPRINT_X, SLOT_BLUEPRINT_Y));
-            this.addSlotToContainer(new SlotItemHandlerOutput(inventory, UniversalCopierTileEnt.SLOT_OUTPUT, SLOT_OUTPUT_X, SLOT_OUTPUT_Y));
+            ItemStackHandlerPlus handler = (ItemStackHandlerPlus) inventory;
+            this.addSlotToContainer(new SlotBlueprintInput(handler, UniversalCopierTileEnt.SLOT_BLUEPRINT, SLOT_BLUEPRINT_X, SLOT_BLUEPRINT_Y));
+            this.addSlotToContainer(new SlotItemHandlerOutput(handler, UniversalCopierTileEnt.SLOT_OUTPUT, SLOT_OUTPUT_X, SLOT_OUTPUT_Y));
         }
         this.playerInv(player, 8, 116);
     }
