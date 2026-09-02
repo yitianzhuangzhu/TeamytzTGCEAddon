@@ -142,12 +142,13 @@ public class BlockTurretBase extends Block {
         return true;
     }
 
-    // ===== 放置时设置所有者（安全/所有者系统）=====
+    // ===== 放置时设置所有者（安全/所有者系统）+ 玩家放置标记（区分结构生成）=====
     @Override
     public void onBlockPlacedBy(World world, BlockPos pos, IBlockState state, EntityLivingBase placer, ItemStack stack) {
         TileEntity tile = world.getTileEntity(pos);
         if (tile instanceof TurretBaseTileEntMaster && placer instanceof EntityPlayer) {
             ((TurretBaseTileEntMaster) tile).setOwner((EntityPlayer) placer);
+            ((TurretBaseTileEntMaster) tile).setPlayerPlaced(true);
         }
     }
 

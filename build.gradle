@@ -13,7 +13,7 @@ apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 
-version = '0.10.28'
+version = '0.20.25'
 group = 'com.ytzzhu.teamytzTGCEAddon' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'tgceaddon'
 
@@ -43,7 +43,8 @@ minecraft {
     mappings channel: 'snapshot', version: '20171003-1.12'
     // makeObfSourceJar = false // an Srg named sources jar is made by default. uncomment this to disable.
     
-    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+    // 将 Entity.setFlag 改为 public(鞘翅喷气背包直接调用)
+    accessTransformer = file('src/main/resources/META-INF/tgceaddon_at.cfg')
 
     // Default run configurations.
     // These can be tweaked, removed, or duplicated as needed.
@@ -66,6 +67,23 @@ minecraft {
             // Recommended logging level for the console
             property 'forge.logging.console.level', 'debug'
         }
+    }
+}
+
+processResources {
+    // 确保此任务在版本变化时重新执行
+    inputs.property "version", project.version
+    inputs.property "mcversion", "1.12.2"
+
+    // 只处理 mcmod.info,替换其中的 ${version} 和 ${mcversion}
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': "1.12.2"
+    }
+
+    // 复制其余资源文件(排除 mcmod.info)
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
     }
 }
 

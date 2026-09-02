@@ -46,6 +46,10 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
     public static final int CANNON_SHELL_POWER_PER_TICK = 120;
     public static final int CANNON_SHELL_OUTPUT_COUNT = 16;
     public static final int CANNON_SHELL_CRAFT_TIME = 40;
+    // 热诱弹生产：100RF/tick × 10tick = 1000RF，每次产出16个
+    public static final int FLARE_POWER_PER_TICK = 100;
+    public static final int FLARE_OUTPUT_COUNT = 16;
+    public static final int FLARE_CRAFT_TIME = 10;
 
     // ===== NBT 标签键名 =====
     private static final String TAG_REGISTERED_TARGETS = "RegisteredTargets";
@@ -268,6 +272,9 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
             if (isCannonShell(output)) {
                 return CANNON_SHELL_POWER_PER_TICK;
             }
+            if (isFlare(output)) {
+                return FLARE_POWER_PER_TICK;
+            }
         }
         return POWER_PER_TICK;
     }
@@ -291,11 +298,20 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
     }
 
     /**
+     * 判断目标物品是否为热诱弹
+     */
+    private boolean isFlare(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        return stack.getItem() == ModItems.flare;
+    }
+
+    /**
      * 获取目标物品的产出数量
      */
     private int getOutputCount(ItemStack target) {
         if (isBoltAmmo(target)) return BOLT_OUTPUT_COUNT;
         if (isCannonShell(target)) return CANNON_SHELL_OUTPUT_COUNT;
+        if (isFlare(target)) return FLARE_OUTPUT_COUNT;
         return 1;
     }
 
@@ -304,6 +320,7 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
      */
     private int getCraftTime(ItemStack target) {
         if (isCannonShell(target)) return CANNON_SHELL_CRAFT_TIME;
+        if (isFlare(target)) return FLARE_CRAFT_TIME;
         return CRAFT_TIME;
     }
 

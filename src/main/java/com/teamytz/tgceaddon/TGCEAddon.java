@@ -36,7 +36,10 @@ public class TGCEAddon
 {
     public static final String MODID = "tgceaddon";
     public static final String NAME = "Tech Guns Community Edition Addon";
-    public static final String VERSION = "0.10.18";
+    public static final String VERSION = "0.20.25";
+
+    /** 红外系统调试日志开关(true=输出 [IR] 前缀日志,便于验证锁定/追踪) */
+    public static final boolean DEBUG_IR = true;
 
     @Mod.Instance(MODID)
     public static TGCEAddon instance;
@@ -52,6 +55,9 @@ public class TGCEAddon
     {
         logger = event.getModLog();
         logger.info("TGCEAddon 开始预初始化...");
+
+        // 加载配置文件(config/tgceaddon.cfg)
+        com.teamytz.tgceaddon.config.ConfigHandler.init(event);
 
         // 注册网络包处理器
         PacketHandler.init();
@@ -75,6 +81,8 @@ public class TGCEAddon
             new ResourceLocation(MODID, "turret_base_master"));
         GameRegistry.registerTileEntity(com.teamytz.tgceaddon.tileentities.TurretBaseTileEntSlave.class,
             new ResourceLocation(MODID, "turret_base_slave"));
+        GameRegistry.registerTileEntity(com.teamytz.tgceaddon.tileentities.TileEntityHeatSource.class,
+            new ResourceLocation(MODID, "heat_source"));
 
         // 初始化实体
         ModEntities.init();

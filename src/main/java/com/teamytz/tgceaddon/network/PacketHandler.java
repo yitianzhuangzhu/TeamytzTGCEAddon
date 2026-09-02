@@ -4,6 +4,7 @@ import com.teamytz.tgceaddon.TGCEAddon;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
+import net.minecraftforge.fml.relauncher.Side;
 
 import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 
@@ -13,12 +14,26 @@ import net.minecraftforge.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 public class PacketHandler
 {
     private static SimpleNetworkWrapper network;
+    private static int discriminator = 0;
 
     public static void init()
     {
         network = new SimpleNetworkWrapper(TGCEAddon.MODID);
 
-        // 当前没有需要注册的网络包
+        // 导弹死亡同步包(服务端 → 客户端)
+        network.registerMessage(MissileDeathMessage.Handler.class, MissileDeathMessage.class, discriminator++, Side.CLIENT);
+        // 启动鞘翅飞行包(客户端 → 服务端)
+        network.registerMessage(ElytraStartMessage.Handler.class, ElytraStartMessage.class, discriminator++, Side.SERVER);
+        // 结束鞘翅飞行包(客户端 → 服务端)
+        network.registerMessage(ElytraStopMessage.Handler.class, ElytraStopMessage.class, discriminator++, Side.SERVER);
+        // 加速状态包(客户端 → 服务端)
+        network.registerMessage(BoostStateMessage.Handler.class, BoostStateMessage.class, discriminator++, Side.SERVER);
+        // 锁定武器:索敌开始(客户端 → 服务端)
+        network.registerMessage(LockOnStartMessage.Handler.class, LockOnStartMessage.class, discriminator++, Side.SERVER);
+        // 锁定武器:锁定状态同步(服务端 → 客户端)
+        network.registerMessage(LockStateMessage.Handler.class, LockStateMessage.class, discriminator++, Side.CLIENT);
+        // 锁定武器:发射请求(客户端 → 服务端)
+        network.registerMessage(IRFireMessage.Handler.class, IRFireMessage.class, discriminator++, Side.SERVER);
     }
 
     public static void sendToServer(IMessage message)

@@ -24,6 +24,7 @@ import net.minecraft.util.EnumFacing;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import techguns.TGSounds;
 import techguns.entities.ai.TurretEntityAINearestAttackableTarget;
@@ -80,6 +81,8 @@ public class EntityBMPTTurret extends EntityCreature {
     public static final float PITCH_MAX_UP = 60.0F;
     /** 最大俯角（度） */
     public static final float PITCH_MAX_DOWN = 10.0F;
+    /** 机炮弹速（格/tick,CannonShellProjectile 的 speed 参数）——用于提前量计算 */
+    public static final double CANNON_SPEED = 1.0D;
 
     /** 所属炮塔控制器(master)的位置 */
     private BlockPos masterPos = null;
@@ -134,7 +137,7 @@ public class EntityBMPTTurret extends EntityCreature {
         // 关键：必须在 spawn 前设置实体位置。
         // World.spawnEntity 会按实体坐标判断所在 chunk 是否加载，
         // 若位置仍是默认 (0,0,0)，chunk (0,0) 未加载时 spawnEntity 返回 false，实体不会进入世界。
-        this.setPosition(masterPos.getX() + 0.5, masterPos.getY() + 1.0, masterPos.getZ() + 0.5);
+        this.setPosition(masterPos.getX() + 0.5, masterPos.getY() + 1.0625, masterPos.getZ() + 0.5);
         TGCEAddon.getLogger().info("[debug][BMPT实体] 构造 side=" + (world.isRemote ? "client" : "server")
                 + " master=" + masterPos + " facing=" + facing.getName()
                 + " pos=(" + this.posX + "," + this.posY + "," + this.posZ + ")");
@@ -185,14 +188,20 @@ public class EntityBMPTTurret extends EntityCreature {
                         if (master != null) {
                             byte pvp = master.getPvpSetting();
                             UUID owner = master.getOwner();
-                            // 玩家按 PVP 设置判断
-                            if (pvp != 0 && owner != null && entity instanceof EntityPlayer) {
+                            if (entity instanceof EntityPlayer) {
                                 UUID plyId = ((EntityPlayer) entity).getGameProfile().getId();
                                 if (plyId != null) {
-                                    if (owner.equals(plyId)) {
-                                        isTarget = false;
-                                    } else {
-                                        isTarget = TGNpcFactions.shouldAttack(owner, plyId, pvp);
+                                    if (!master.isPlayerPlaced()) {
+                                        // 自然结构/模组生成的炮塔:视为敌对建筑,攻击一切玩家
+                                        isTarget = true;
+                                    } else if (owner == null) {
+                                        isTarget = true;
+                                    } else if (pvp != 0) {
+                                        if (owner.equals(plyId)) {
+                                            isTarget = false;
+                                        } else {
+                                            isTarget = TGNpcFactions.shouldAttack(owner, plyId, pvp);
+                                        }
                                     }
                                 }
                             }
@@ -256,8 +265,8 @@ public class EntityBMPTTurret extends EntityCreature {
         }
         BlockPos mp = master.getPos();
         EnumFacing dir = master.getMultiblockDirection();
-        // 模型渲染在 master 上方一格的中心（炮塔底座为 3x3 结构，master 即中心）
-        this.setPosition(mp.getX() + 0.5, mp.getY() + 1.0, mp.getZ() + 0.5);
+        // 模型渲染在 master 上方一格中心偏上 1 像素（炮塔底座为 3x3 结构，master 即中心）
+        this.setPosition(mp.getX() + 0.5, mp.getY() + 1.0625, mp.getZ() + 0.5);
         // 身体朝向 = 结构朝向（模型渲染用 FACING）；开火朝向(rotationYawHead)由 lookHelper 控制
         this.rotationYaw = yawForFacing(dir);
         if (this.dataManager.get(FACING) != dir.getIndex()) {
@@ -281,10 +290,12 @@ public class EntityBMPTTurret extends EntityCreature {
             // 计算完写回 rotationPitch/rotationYawHead（弹道 getMuzzlePos / 渲染 / 同步读它们）。
             float aimYaw = (float) (MathHelper.atan2(tgt.posZ - this.posZ,
                     tgt.posX - this.posX) * 180.0D / Math.PI) - 90.0F;
+            Vec3d aim = getAimPoint(tgt);
+            aimYaw = (float) (MathHelper.atan2(aim.z - this.posZ, aim.x - this.posX) * 180.0D / Math.PI) - 90.0F;
             this.turretYaw = approachAngle(this.turretYaw, aimYaw, 6.0F);
             this.rotationYawHead = this.turretYaw;
             this.turretPitch = MathHelper.clamp(
-                    approachAngle(this.turretPitch, getRequiredPitch(tgt), 8.0F),
+                    approachAngle(this.turretPitch, getRequiredPitch(aim), 8.0F),
                     -PITCH_MAX_UP, PITCH_MAX_DOWN);
             this.rotationPitch = this.turretPitch;
         } else {
@@ -347,12 +358,43 @@ public class EntityBMPTTurret extends EntityCreature {
      * 公式与 EntityLookHelper.updateLook 完全一致，保证与实际瞄准方向相同
      */
     private float getRequiredPitch(EntityLivingBase target) {
-        double dx = target.posX - this.posX;
-        double dz = target.posZ - this.posZ;
-        double dy = (target.posY + target.getEyeHeight())
-                - (this.posY + this.getEyeHeight());
+        return getRequiredPitch(new Vec3d(target.posX, target.posY + target.getEyeHeight(), target.posZ));
+    }
+
+    /** 计算瞄准给定目标点所需的俯仰角（度，负=抬头、正=低头） */
+    private float getRequiredPitch(Vec3d aim) {
+        double dx = aim.x - this.posX;
+        double dz = aim.z - this.posZ;
+        double dy = aim.y - (this.posY + this.getEyeHeight());
         double dist = MathHelper.sqrt(dx * dx + dz * dz);
         return (float) (-(MathHelper.atan2(dy, dist) * 180.0D / Math.PI));
+    }
+
+    /**
+     * 计算实际瞄准点:
+     * - 未安装运算卡片:目标当前位置(中心+眼高)
+     * - 安装运算卡片(lead_computing):计算移动目标提前量——
+     *   按炮弹飞行时间预测目标未来位置(迭代两次收敛),朝提前量位置开火,
+     *   解决机炮对空中移动目标"永远打不中"的问题
+     */
+    private Vec3d getAimPoint(EntityLivingBase target) {
+        TurretBaseTileEntMaster master = getMasterTile();
+        if (master == null || !master.hasUpgrade(com.teamytz.tgceaddon.item.ItemTurretUpgrade.TYPE_LEAD_COMPUTING)) {
+            return new Vec3d(target.posX, target.posY + target.getEyeHeight(), target.posZ);
+        }
+        // 预测:目标当前位置 + 目标速度 × 炮弹飞行时间(距离/弹速)
+        double t = this.getDistance(target) / CANNON_SPEED;
+        Vec3d predicted = new Vec3d(
+                target.posX + target.motionX * t,
+                target.posY + target.motionY * t + target.getEyeHeight(),
+                target.posZ + target.motionZ * t);
+        // 二次迭代:用预测点的距离重新计算飞行时间,提高精度
+        double t2 = Math.sqrt(predicted.squareDistanceTo(this.posX, this.posY, this.posZ)) / CANNON_SPEED;
+        predicted = new Vec3d(
+                target.posX + target.motionX * t2,
+                target.posY + target.motionY * t2 + target.getEyeHeight(),
+                target.posZ + target.motionZ * t2);
+        return predicted;
     }
 
     // ===== 开火 =====
@@ -404,14 +446,14 @@ public class EntityBMPTTurret extends EntityCreature {
         // 2) 加回 gun(0,8,0) 与 main(0,14,0) 的平移 -> 相对实体原点的模型坐标
         float my3 = my2 + 22.0F;
         float mz3 = mz2;
-        // 3) 水平旋转：渲染器 rotate(180 - yawHead)，scale(1,-1,1) 翻转不影响 x/z。
+        // 3) 水平旋转：渲染器 scale(-1,-1,1) + rotate(yaw - 180)：wx 取负，θ = yaw-180。
         //    用 turretYaw（服务端累积平滑值）；rotationYawHead 每 tick 被 lookHelper 体系清零，不可用
         float dx = mx / 16.0F;
         float dz = mz3 / 16.0F;
-        float angle = (float) Math.toRadians(180.0F - this.turretYaw);
+        float angle = (float) Math.toRadians(this.turretYaw - 180.0F);
         float cos = MathHelper.cos(angle);
         float sin = MathHelper.sin(angle);
-        float wx = dx * cos + dz * sin;
+        float wx = -(dx * cos + dz * sin);
         float wz = -dx * sin + dz * cos;
         // 4) 垂直：translate(25px) 在 scale 之前 -> 世界偏移 = (25 - my3)/16 格
         float wy = (25.0F - my3) / 16.0F;
@@ -427,6 +469,10 @@ public class EntityBMPTTurret extends EntityCreature {
     public boolean fireCannon(boolean sideLeft) {
         TurretBaseTileEntMaster master = getMasterTile();
         if (master == null || !master.isFormed()) {
+            return false;
+        }
+        // 先检查弹药再扣能量/弹药(旧逻辑先扣电,无弹药时每 tick 白耗电,同罗兰卡死问题)
+        if (!master.hasCannonAmmo()) {
             return false;
         }
         if (!master.consumeTurretPower(CANNON_POWER)) {
@@ -462,6 +508,10 @@ public class EntityBMPTTurret extends EntityCreature {
         if (master == null || !master.isFormed()) {
             return false;
         }
+        // 先检查弹药再扣能量/弹药(同 fireCannon)
+        if (!master.hasRocketAmmo()) {
+            return false;
+        }
         if (!master.consumeTurretPower(ROCKET_POWER)) {
             return false;
         }
@@ -471,7 +521,8 @@ public class EntityBMPTTurret extends EntityCreature {
         // 同 fireCannon：GenericProjectile 构造读 shooter.rotationYawHead/rotationPitch，写回累积角
         this.rotationYawHead = this.turretYaw;
         this.rotationPitch = this.turretPitch;
-        GuidedMissileProjectile rocket = new GuidedMissileProjectile(this.world, this,
+        GuidedMissileProjectile rocket = new com.teamytz.tgceaddon.entities.projectiles.BMPTGuidedMissileProjectile(
+                this.world, this,
                 12.0f, 1.0f, 100, 0.05f, 30, 40, 8.0f, 0.25f, false,
                 EnumBulletFirePos.CENTER, 4.0f, this.getAttackTarget());
         // 定位到对应导弹巢口（巢口模型坐标：左巢 x=+17.5、右巢 x=-17.75，y=-5，z=-20.5）
@@ -605,7 +656,8 @@ public class EntityBMPTTurret extends EntityCreature {
 
         public AIBMPTAttack(EntityBMPTTurret turret) {
             this.turret = turret;
-            this.setMutexBits(3);
+            // mutex=0:防止被其它 mod(DynamicStealth 等)注入的常驻任务互斥拦截无法开火
+            this.setMutexBits(0);
         }
 
         @Override
@@ -649,14 +701,16 @@ public class EntityBMPTTurret extends EntityCreature {
             // 这里只处理开火判定与火力输出。
 
             // 俯仰角限制导致无法命中目标（瞄准所需仰角>60° 或俯角>10°）：停火，但继续转头
-            float requiredPitch = this.turret.getRequiredPitch(target);
+            // 用实际瞄准点(含提前量)判断,与开火方向一致
+            Vec3d aim = this.turret.getAimPoint(target);
+            float requiredPitch = this.turret.getRequiredPitch(aim);
             if (requiredPitch < -PITCH_MAX_UP || requiredPitch > PITCH_MAX_DOWN) {
                 resetFireState();
                 return;
             }
             // 炮口对准检查：炮塔转向是限速的（水平 6°/tick），转动过程中不开火，
             // 否则弹道会随炮塔扫出去（扫射）。水平/俯仰都进入容差后才允许开火
-            float targetYaw = (float) (MathHelper.atan2(target.posZ - this.turret.posZ, target.posX - this.turret.posX) * 180.0D / Math.PI) - 90.0F;
+            float targetYaw = (float) (MathHelper.atan2(aim.z - this.turret.posZ, aim.x - this.turret.posX) * 180.0D / Math.PI) - 90.0F;
             // 对准检查用 turret.turretPitch/turret.turretYaw（服务端累积值）；
             // rotationPitch/rotationYawHead 每 tick 被 lookHelper 体系清零
             if (Math.abs(MathHelper.wrapDegrees(this.turret.turretYaw - targetYaw)) > YAW_ALIGN_TOLERANCE
