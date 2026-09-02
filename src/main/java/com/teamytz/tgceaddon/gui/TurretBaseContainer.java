@@ -63,6 +63,9 @@ public class TurretBaseContainer extends RedstoneTileContainer {
 
             // 卡片槽（原武器槽位置 85,19）
             this.addSlotToContainer(new SlotTurretCard(handler, TurretBaseTileEntMaster.SLOT_CARD, 85, 19));
+
+            // 升级槽（科技枪炮台防护板槽位置 85,42）:放入炮塔升级卡
+            this.addSlotToContainer(new SlotTurretUpgrade(handler, TurretBaseTileEntMaster.SLOT_UPGRADE, 85, 42));
         }
 
         this.addDefaultPlayerInventorySlots(player);
@@ -99,16 +102,22 @@ public class TurretBaseContainer extends RedstoneTileContainer {
             stack = stack1.copy();
             if (!stack.isEmpty()) {
                 // 机器槽位 -> 玩家背包
-                if (slotid <= TurretBaseTileEntMaster.SLOT_CARD) {
-                    if (!this.mergeItemStack(stack1, TurretBaseTileEntMaster.SLOT_CARD + 1, TurretBaseTileEntMaster.SLOT_CARD + 1 + 36, false)) {
+                if (slotid <= TurretBaseTileEntMaster.SLOT_UPGRADE) {
+                    if (!this.mergeItemStack(stack1, TurretBaseTileEntMaster.SLOT_UPGRADE + 1, TurretBaseTileEntMaster.SLOT_UPGRADE + 1 + 36, false)) {
                         return ItemStack.EMPTY;
                     }
                     slot.onSlotChange(stack1, stack);
-                } else if (slotid > TurretBaseTileEntMaster.SLOT_CARD) {
+                } else if (slotid > TurretBaseTileEntMaster.SLOT_UPGRADE) {
                     // 玩家背包 -> 机器
                     if (stack.getItem() instanceof ItemTurretCard) {
                         // 卡片进卡片槽
                         if (!this.mergeItemStack(stack1, TurretBaseTileEntMaster.SLOT_CARD, TurretBaseTileEntMaster.SLOT_CARD + 1, false)) {
+                            return ItemStack.EMPTY;
+                        }
+                        slot.onSlotChange(stack1, stack);
+                    } else if (stack.getItem() instanceof com.teamytz.tgceaddon.item.ItemTurretUpgrade) {
+                        // 升级卡进升级槽
+                        if (!this.mergeItemStack(stack1, TurretBaseTileEntMaster.SLOT_UPGRADE, TurretBaseTileEntMaster.SLOT_UPGRADE + 1, false)) {
                             return ItemStack.EMPTY;
                         }
                         slot.onSlotChange(stack1, stack);

@@ -40,7 +40,11 @@ public class ItemTurretCard extends Item {
     public void addInformation(ItemStack stack, World worldIn, List<String> tooltip, ITooltipFlag flagIn) {
         String type = getTurretType(stack);
         if (!type.isEmpty()) {
-            tooltip.add(net.minecraft.client.resources.I18n.format("item.tgceaddon.turret_card.type") + ": " + type);
+            String display = net.minecraft.client.resources.I18n.format("item.tgceaddon.turret_card." + type);
+            if (display.equals("item.tgceaddon.turret_card." + type)) {
+                display = type; // 无本地化时显示原始类型名
+            }
+            tooltip.add(net.minecraft.client.resources.I18n.format("item.tgceaddon.turret_card.type") + ": " + display);
         } else {
             tooltip.add(net.minecraft.client.resources.I18n.format("item.tgceaddon.turret_card.type") + ": "
                     + net.minecraft.client.resources.I18n.format("item.tgceaddon.turret_card.unknown"));

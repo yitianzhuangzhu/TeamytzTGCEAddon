@@ -130,4 +130,23 @@ public class ItemBolter extends GenericGun {
         ModelLoader.setCustomModelResourceLocation(this, 0,
             new ModelResourceLocation(TGCEAddon.MODID + ":bolter", "inventory"));
     }
+
+    /**
+     * 客户端开火回调:在枪口位置生成短促高亮动态光源(模拟枪口火焰对环境的光照闪烁,
+     * 走 OptiFine 动态光源;未装 OptiFine 时无光效,不影响其他功能)。
+     */
+    @Override
+    @SideOnly(Side.CLIENT)
+    protected void client_weaponFired() {
+        super.client_weaponFired();
+        net.minecraft.entity.player.EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().player;
+        if (player != null) {
+            net.minecraft.util.math.Vec3d look = player.getLookVec();
+            net.minecraft.util.math.Vec3d pos = new net.minecraft.util.math.Vec3d(
+                    player.posX, player.posY + player.getEyeHeight(), player.posZ)
+                    .add(look.scale(0.6D));
+            com.teamytz.tgceaddon.entities.EntityMuzzleLight.spawnFlash(
+                    player.world, pos.x, pos.y, pos.z, 15, 4);
+        }
+    }
 }

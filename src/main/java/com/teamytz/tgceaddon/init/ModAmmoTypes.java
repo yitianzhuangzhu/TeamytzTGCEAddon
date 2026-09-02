@@ -16,6 +16,10 @@ public class ModAmmoTypes implements ITGInitializer {
 
     public static AmmoType BOLTS;
     public static AmmoType BOLT_MAGAZINE;
+    /** 过载制导导弹弹药 - 复用科技枪火箭弹(仅 default 变体) */
+    public static AmmoType ROCKET_OVERLOAD;
+    /** 指令线(惯性)导弹弹药 - 含核弹变体:default=火箭弹,nuke=核火箭 */
+    public static AmmoType ROCKETS_WITH_NUKE;
     
     public static ItemStack BOLT_ITEM;
     public static ItemStack BOLT_MAGAZINE_FULL;
@@ -40,6 +44,14 @@ public class ModAmmoTypes implements ITGInitializer {
             BOLT_ITEM,  // 使用爆弹作为弹药
             20  // 容量20发
         );
+
+        // 过载制导导弹弹药:直接复用科技枪的火箭弹物品,仅 default 变体
+        // (工厂数组数量需与变体数量一致,单变体对应单工厂)
+        ROCKET_OVERLOAD = new AmmoType(TGItems.ROCKET);
+
+        // 指令线(惯性)导弹弹药:default=火箭弹,nuke=核火箭(装核弹即发射核导弹变体)
+        ROCKETS_WITH_NUKE = new AmmoType(TGItems.ROCKET);
+        ROCKETS_WITH_NUKE.addVariant("nuke", TGItems.ROCKET_NUKE);
     }
 
     @Override

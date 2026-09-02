@@ -2,6 +2,7 @@ package com.teamytz.tgceaddon.tileentities;
 
 import com.teamytz.tgceaddon.TGCEAddon;
 import com.teamytz.tgceaddon.entities.EntityBMPTTurret;
+import com.teamytz.tgceaddon.entities.EntityRolandTurret;
 import com.teamytz.tgceaddon.init.BlockTurretBase;
 import com.teamytz.tgceaddon.init.BlockTurretBaseSlave;
 import com.teamytz.tgceaddon.init.ModItems;
@@ -44,6 +45,8 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
     public static final int SLOT_OUTPUT1 = SLOT_INPUT1 + INPUTS_SIZE;
     public static final int OUTPUTS_SIZE = 9;
     public static final int SLOT_CARD = SLOT_OUTPUT1 + OUTPUTS_SIZE;
+    /** 升级槽(对应科技枪炮台防护板槽位 index 19):放入炮塔升级卡 */
+    public static final int SLOT_UPGRADE = SLOT_CARD + 1;
 
     // ===== 最大能量存储 (RF) =====
     public static final int MAX_POWER = 5000;
@@ -67,23 +70,32 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
 
     protected boolean formed = false;
     protected EnumFacing multiblockDirection = EnumFacing.SOUTH;
+    /** 是否由玩家亲手放置(onBlockPlacedBy)。结构生成/模组放置的炮塔为 false:
+     *  structure 模组用 setBlockState 直接放方块,不会调用 onBlockPlacedBy,
+     *  但可能把原作者存档里的 owner/pvp 一起写进 NBT,导致玩家目标判定被绕过。 */
+    protected boolean playerPlaced = false;
 
     // ===== 炮塔实体管理 =====
-    /** 当前生成的炮塔实体（仅服务端持有引用） */
-    private EntityBMPTTurret mountedTurret = null;
+    /** 当前生成的炮塔实体（仅服务端持有引用，BMPT/罗兰共用） */
+    private Entity mountedTurret = null;
     /** 炮塔实体的 UUID，用于世界重载后找回已存在的实体，避免重复生成 */
     private UUID mountedTurretUUID = null;
     /** debug：上次记录的状态，仅状态变化时打日志避免刷屏 */
     private boolean lastDebugFormed = false;
     private String lastDebugCardType = "";
+    /** 结构完整性自检计时器(每 10 tick 一次) */
+    private int integrityCheckTimer = 0;
 
     public TurretBaseTileEntMaster() {
-        super(SLOT_CARD + 1, false, MAX_POWER);
-        this.inventory = new ItemStackHandlerPlus(SLOT_CARD + 1) {
+        super(SLOT_UPGRADE + 1, false, MAX_POWER);
+        this.inventory = new ItemStackHandlerPlus(SLOT_UPGRADE + 1) {
             @Override
             protected boolean allowItemInSlot(int slot, ItemStack stack) {
                 if (slot == SLOT_CARD) {
                     return stack.getItem() instanceof ItemTurretCard;
+                } else if (slot == SLOT_UPGRADE) {
+                    // 升级槽:只允许炮塔升级卡
+                    return stack.getItem() instanceof com.teamytz.tgceaddon.item.ItemTurretUpgrade;
                 } else if (slot >= SLOT_INPUT1 && slot < SLOT_INPUT1 + INPUTS_SIZE) {
                     // 弹药输入槽：允许任意物品（换弹时消耗，由炮塔实体逻辑决定哪些是弹药）
                     return true;
@@ -94,8 +106,9 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
 
             @Override
             protected boolean allowExtractFromSlot(int slot, int amount) {
-                // 输出槽和卡片槽允许取出
-                return (slot >= SLOT_OUTPUT1 && slot < SLOT_OUTPUT1 + OUTPUTS_SIZE) || slot == SLOT_CARD;
+                // 输出槽、卡片槽和升级槽允许取出
+                return (slot >= SLOT_OUTPUT1 && slot < SLOT_OUTPUT1 + OUTPUTS_SIZE)
+                        || slot == SLOT_CARD || slot == SLOT_UPGRADE;
             }
         };
     }
@@ -143,6 +156,14 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
             this.mountedTurret = null;
         }
 
+        // 结构完整性自检(每 10 tick):自然结构/模组放置的炮塔 slave 可能未经过
+        // checkAndForm 链接(hasMaster=false,破坏 slave 不会解散结构),这里补链接;
+        // 任一 slave 缺失 → 解散整个结构,保证破坏任意结构方块即拆散。
+        if (this.formed && ++this.integrityCheckTimer >= 10) {
+            this.integrityCheckTimer = 0;
+            this.validateMultiblock();
+        }
+
         boolean wantTurret = this.formed && !getCardType().isEmpty();
         String cardType = getCardType();
         // debug：状态变化时记录（formed / 卡片类型 / 是否需要实体），避免每 tick 刷屏
@@ -160,8 +181,9 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
                 // 世界重载后尝试按 UUID 找回已保存的实体
                 if (this.mountedTurretUUID != null) {
                     for (Entity ent : this.world.loadedEntityList) {
-                        if (ent instanceof EntityBMPTTurret && ent.getUniqueID().equals(this.mountedTurretUUID)) {
-                            this.mountedTurret = (EntityBMPTTurret) ent;
+                        if ((ent instanceof EntityBMPTTurret || ent instanceof EntityRolandTurret)
+                                && ent.getUniqueID().equals(this.mountedTurretUUID)) {
+                            this.mountedTurret = ent;
                             break;
                         }
                     }
@@ -176,14 +198,21 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
     }
 
     /**
-     * 在 master 上方生成炮塔实体
+     * 在 master 上方生成炮塔实体(按卡片类型:bmpt → BMPT 炮塔,roland → 罗兰防空系统)
      */
     private void spawnTurretEntity() {
-        EntityBMPTTurret turret = new EntityBMPTTurret(this.world, this.pos, this.multiblockDirection);
+        Entity turret;
+        String cardType = getCardType();
+        if ("roland".equals(cardType)) {
+            turret = new EntityRolandTurret(this.world, this.pos, this.multiblockDirection);
+        } else {
+            // 默认/bmpt
+            turret = new EntityBMPTTurret(this.world, this.pos, this.multiblockDirection);
+        }
         boolean spawned = this.world.spawnEntity(turret);
         this.mountedTurret = turret;
         this.mountedTurretUUID = turret.getUniqueID();
-        TGCEAddon.getLogger().info("[debug] 炮塔实体已生成 (master@" + this.pos + ", 类型" + getCardType()
+        TGCEAddon.getLogger().info("[debug] 炮塔实体已生成 (master@" + this.pos + ", 类型" + cardType
                 + ", spawnEntity=" + spawned + ", entityId=" + turret.getEntityId() + ")");
     }
 
@@ -202,6 +231,15 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
         return multiblockDirection;
     }
 
+    /** 是否由玩家亲手放置(自然结构/模组生成的炮塔为 false,视为敌对建筑) */
+    public boolean isPlayerPlaced() {
+        return this.playerPlaced;
+    }
+
+    public void setPlayerPlaced(boolean v) {
+        this.playerPlaced = v;
+    }
+
     @Override
     public ITextComponent getDisplayName() {
         return new TextComponentTranslation("container.tgceaddon.turret_base");
@@ -217,6 +255,18 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
      */
     public String getCardType() {
         return ItemTurretCard.getTurretType(getCard());
+    }
+
+    // ===== 升级槽相关 =====
+    public ItemStack getUpgrade() {
+        return this.inventory.getStackInSlot(SLOT_UPGRADE);
+    }
+
+    /**
+     * 升级槽中是否安装了指定类型的升级卡
+     */
+    public boolean hasUpgrade(String type) {
+        return com.teamytz.tgceaddon.item.ItemTurretUpgrade.getUpgradeType(getUpgrade()).equals(type);
     }
 
     // ===== GUI 按钮事件（科技枪 PacketGuiButtonClick -> tile.buttonClicked）=====
@@ -252,10 +302,12 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
 
     /**
      * 弹药输入槽中是否有机炮炮弹
+     * 注意:InventoryUtil.canConsumeItem 返回 0 表示"找到足够弹药",>0 表示不足,
+     * 所以"有弹药"的判定是 <= 0(曾误用 > 0 导致判定完全反相)
      */
     public boolean hasCannonAmmo() {
         return InventoryUtil.canConsumeItem(this.inventory, new ItemStack(ModItems.cannonShell),
-                SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE) > 0;
+                SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE) <= 0;
     }
 
     /**
@@ -276,11 +328,37 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
     }
 
     /**
-     * 弹药输入槽中是否有火箭弹
+     * 弹药输入槽中是否有火箭弹(返回 0 = 足够,见 hasCannonAmmo 注释)
      */
     public boolean hasRocketAmmo() {
         return InventoryUtil.canConsumeItem(this.inventory, TGItems.ROCKET,
-                SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE) > 0;
+                SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE) <= 0;
+    }
+
+    /**
+     * 弹药输入槽中是否有核火箭(核弹变体弹药)
+     */
+    public boolean hasNukeAmmo() {
+        return InventoryUtil.canConsumeItem(this.inventory, TGItems.ROCKET_NUKE,
+                SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE) <= 0;
+    }
+
+    /**
+     * 消耗一发核火箭(TGItems.ROCKET_NUKE,从弹药输入槽扣)
+     */
+    public boolean consumeNukeAmmo() {
+        return InventoryUtil.consumeAmmo(this.inventory, TGItems.ROCKET_NUKE,
+                SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE);
+    }
+
+    /**
+     * 读取指定弹药输入槽的物品(调试用)
+     */
+    public ItemStack getInputStack(int slot) {
+        if (slot >= SLOT_INPUT1 && slot < SLOT_INPUT1 + INPUTS_SIZE) {
+            return this.inventory.getStackInSlot(slot);
+        }
+        return ItemStack.EMPTY;
     }
 
     /**
@@ -339,6 +417,30 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
         this.needUpdate();
         TGCEAddon.getLogger().info("[debug] 炮塔基座结构形成成功 (master@" + this.pos + ", 朝向" + dir.getName() + ", 8个支撑已链接)");
         return true;
+    }
+
+    /**
+     * 结构完整性自检:
+     * - 存在但未链接的 slave(form 设 hasMaster + master 坐标,兼容结构生成/模组放置)
+     * - 任一 slave 缺失 → 解散整个结构
+     */
+    private void validateMultiblock() {
+        boolean complete = true;
+        for (BlockPos off : getSlaveOffsets()) {
+            BlockPos p = this.pos.add(off.getX(), off.getY(), off.getZ());
+            if (!(this.world.getBlockState(p).getBlock() instanceof BlockTurretBaseSlave)) {
+                complete = false;
+                break;
+            }
+            TileEntity te = this.world.getTileEntity(p);
+            if (te instanceof TurretBaseTileEntSlave && !((TurretBaseTileEntSlave) te).hasMaster()) {
+                ((TurretBaseTileEntSlave) te).form(this.pos);
+            }
+        }
+        if (!complete) {
+            TGCEAddon.getLogger().info("[debug] 炮塔基座结构完整性检查:slave 缺失,解散 (master@" + this.pos + ")");
+            this.onMultiBlockBreak();
+        }
     }
 
     /**
@@ -404,6 +506,7 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
         }
         tags.setBoolean("attackAnimals", this.attackAnimals);
         tags.setByte("pvpsetting", this.pvpsetting);
+        tags.setBoolean("playerPlaced", this.playerPlaced);
         if (this.mountedTurretUUID != null) {
             tags.setString("mountedTurretUUID", this.mountedTurretUUID.toString());
         }
@@ -418,6 +521,7 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
         }
         this.attackAnimals = tags.getBoolean("attackAnimals");
         this.pvpsetting = tags.getByte("pvpsetting");
+        this.playerPlaced = tags.getBoolean("playerPlaced");
         if (tags.hasKey("mountedTurretUUID")) {
             try {
                 this.mountedTurretUUID = UUID.fromString(tags.getString("mountedTurretUUID"));

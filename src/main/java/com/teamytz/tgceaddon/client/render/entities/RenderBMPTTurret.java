@@ -75,8 +75,10 @@ public class RenderBMPTTurret extends Render<EntityBMPTTurret> {
         // 实测：+24px 基本合适，再上移 1 像素 => +25px
         GlStateManager.translate(0.0F, 25.0F / 16.0F, 0.0F);
 
-        // 翻转 Y 修正模型上下颠倒（scale(1,-1,1) 只翻转 y，不影响 x/z 朝向）
-        GlStateManager.scale(1.0F, -1.0F, 1.0F);
+        // 翻转 Y 修正模型上下颠倒;再翻转 X 修正左右镜像(渲染级镜像,模型数据保持原始)
+        // scale(-1,-1,1) 使 3D 变换行列式为 +1(纯旋转),渲染结果与 Blockbench 预览一致,
+        // 且贴图保持原样——不再需要几何级镜像
+        GlStateManager.scale(-1.0F, -1.0F, 1.0F);
 
         // ===== 水平转向：整个实体（含底座/侧裙）朝目标方向旋转 =====
         // 模型零方向朝 -Z(北)，MC yaw 语义 0=南，且 scale(1,-1,1) 镜像反转了旋转方向，
@@ -114,7 +116,7 @@ public class RenderBMPTTurret extends Render<EntityBMPTTurret> {
         entity.renderYawHead = yawHead;
         entity.renderPitch = turretPitch;
 
-        GlStateManager.rotate(180.0F - yawHead, 0.0F, 1.0F, 0.0F);
+        GlStateManager.rotate(yawHead - 180.0F, 0.0F, 1.0F, 0.0F);
 
         this.bindEntityTexture(entity);
 

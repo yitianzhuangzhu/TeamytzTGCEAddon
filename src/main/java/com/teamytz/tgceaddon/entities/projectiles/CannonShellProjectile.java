@@ -45,6 +45,9 @@ public class CannonShellProjectile extends BoltProjectile {
             if (!this.muzzleSmokeSpawned) {
                 this.muzzleSmokeSpawned = true;
                 spawnMuzzleSmoke();
+                // 开火动态光源:炮口短促高亮闪光(OptiFine 动态光源;未装则无光效)
+                com.teamytz.tgceaddon.entities.EntityMuzzleLight.spawnFlash(
+                        this.world, this.posX, this.posY, this.posZ, 15, 4);
             }
             spawnTrailSmoke();
         }

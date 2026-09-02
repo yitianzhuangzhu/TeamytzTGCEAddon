@@ -2,6 +2,7 @@ package com.teamytz.tgceaddon.init;
 
 import com.teamytz.tgceaddon.TGCEAddon;
 import com.teamytz.tgceaddon.item.ItemBlueprint;
+import com.teamytz.tgceaddon.item.ItemTurretUpgrade;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -50,11 +51,20 @@ public class ModCreativeTabs
             items.add(ItemBlueprint.createBlueprint(TGItems.ROCKET.copy()));
             // 机炮炮弹蓝图（通用复制机可复制机炮炮弹，BMPT 机炮弹药）
             items.add(ItemBlueprint.createBlueprint(new ItemStack(ModItems.cannonShell)));
+            // 热诱弹蓝图（通用复制机可复制热诱弹,1000RF 产出 16 个,热诱弹发射器弹药）
+            items.add(ItemBlueprint.createBlueprint(new ItemStack(ModItems.flare)));
             // 带 bmpt NBT 的炮塔卡片（放入炮塔控制器卡片槽生成 BMPT 炮塔实体）
             ItemStack bmptCard = new ItemStack(ModItems.turretCard);
             bmptCard.setTagCompound(new NBTTagCompound());
             bmptCard.getTagCompound().setString("turretType", "bmpt");
             items.add(bmptCard);
+            // 带 roland NBT 的炮塔卡片（生成罗兰防空炮塔实体）
+            ItemStack rolandCard = new ItemStack(ModItems.turretCard);
+            rolandCard.setTagCompound(new NBTTagCompound());
+            rolandCard.getTagCompound().setString("turretType", "roland");
+            items.add(rolandCard);
+            // 运算卡片（放入炮塔升级槽,炮塔计算移动目标提前量）
+            items.add(ItemTurretUpgrade.createUpgrade(ItemTurretUpgrade.TYPE_LEAD_COMPUTING));
         }
     };
 }

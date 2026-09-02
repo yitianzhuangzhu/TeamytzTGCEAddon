@@ -181,6 +181,17 @@ public class TurretBaseGui extends PoweredTileEntGui {
             }
         }
 
+        // ===== 升级槽 Tooltip(坐标 85,42,科技枪防护板槽位) =====
+        if (isInRect(mx, my, 85, 42, 16, 16)) {
+            ItemStack upgrade = tileent.getUpgrade();
+            if (!upgrade.isEmpty()) {
+                this.drawHoveringText(upgrade.getTooltip(this.mc.player,
+                        this.mc.gameSettings.advancedItemTooltips ? net.minecraft.client.util.ITooltipFlag.TooltipFlags.ADVANCED : net.minecraft.client.util.ITooltipFlag.TooltipFlags.NORMAL), mx, my);
+            } else {
+                this.drawHoveringText(I18n.format("item.tgceaddon.turret_upgrade.name"), mx, my);
+            }
+        }
+
         // ===== RF 能量条 Tooltip =====
         drawDefaultEnergyTooltip(mx, my);
     }

@@ -1,10 +1,17 @@
 package com.teamytz.tgceaddon.init;
 
+import com.teamytz.tgceaddon.TGCEAddon;
 import net.minecraft.block.Block;
+import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.ItemBlock;
+import net.minecraft.util.ResourceLocation;
+import net.minecraftforge.client.event.ModelRegistryEvent;
+import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +25,7 @@ public class ModBlocks {
     public static BlockUniversalCopier UNIVERSAL_COPIER;
     public static BlockTurretBase TURRET_BASE;
     public static BlockTurretBaseSlave TURRET_BASE_SLAVE;
+    public static BlockHeatSource HEAT_SOURCE;
 
     public static void init() {
         UNIVERSAL_COPIER = new BlockUniversalCopier("universal_copier");
@@ -28,6 +36,10 @@ public class ModBlocks {
 
         TURRET_BASE_SLAVE = new BlockTurretBaseSlave("turret_plate");
         BLOCKLIST.add(TURRET_BASE_SLAVE);
+
+        // 热源测试方块(红外系统测试用)
+        HEAT_SOURCE = new BlockHeatSource("heat_source");
+        BLOCKLIST.add(HEAT_SOURCE);
     }
 
     @SubscribeEvent
@@ -39,6 +51,10 @@ public class ModBlocks {
                 ((BlockTurretBase) block).registerBlock(event);
             } else if (block instanceof BlockTurretBaseSlave) {
                 ((BlockTurretBaseSlave) block).registerBlock(event);
+            } else if (block instanceof BlockHeatSource) {
+                ((BlockHeatSource) block).registerBlock(event);
+            } else {
+                event.getRegistry().register(block);
             }
         }
     }
@@ -53,12 +69,29 @@ public class ModBlocks {
                 itemBlock = ((BlockTurretBase) block).createItemBlock();
             } else if (block instanceof BlockTurretBaseSlave) {
                 itemBlock = ((BlockTurretBaseSlave) block).createItemBlock();
+            } else if (block instanceof BlockHeatSource) {
+                itemBlock = ((BlockHeatSource) block).createItemBlock();
+            } else {
+                itemBlock = new ItemBlock(block);
             }
             if (itemBlock != null) {
                 itemBlock.setRegistryName(block.getRegistryName());
                 event.getRegistry().register(itemBlock);
                 ITEMBLOCKLIST.add(itemBlock);
             }
+        }
+    }
+
+    // ===== 物品模型注册：所有方块物品统一注册 <name>#inventory =====
+    // 1.12.2 对 #inventory variant 会自动补全到 models/item/<name>.json（VanillaLoader 兜底），
+    // 而 blockstate 的 inventory variant（如有）会优先命中方块模型。
+    @SideOnly(Side.CLIENT)
+    @SubscribeEvent
+    public static void onModelRegistry(ModelRegistryEvent event) {
+        for (ItemBlock itemBlock : ITEMBLOCKLIST) {
+            String path = itemBlock.getRegistryName().getResourcePath();
+            ModelLoader.setCustomModelResourceLocation(itemBlock, 0,
+                    new ModelResourceLocation(new ResourceLocation(TGCEAddon.MODID, path), "inventory"));
         }
     }
 }
