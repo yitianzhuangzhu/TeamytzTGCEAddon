@@ -13,7 +13,7 @@ apply plugin: 'net.minecraftforge.gradle'
 apply plugin: 'eclipse'
 apply plugin: 'maven-publish'
 
-version = '0.20.25'
+version = '0.20.26'
 group = 'com.ytzzhu.teamytzTGCEAddon' // http://maven.apache.org/guides/mini/guide-naming-conventions.html
 archivesBaseName = 'tgceaddon'
 
@@ -101,6 +101,9 @@ dependencies {
     minecraft 'net.minecraftforge:forge:1.12.2-14.23.5.2860'
     compileOnly files('libs/techguns-2.1.3.0.jar')
     compileOnly files('libs/Baubles-1.12-1.5.2.jar')
+    // DynamicStealth 枪声警觉适配(软依赖,仅编译用,需同时提供 FantasticLib)
+    compileOnly files('libs/DynamicStealth-1.12.2.120.jar')
+    compileOnly files('libs/FantasticLib-1.12.2.070.jar')
     // You may put jars on which you depend on in ./libs or you may define them like so..
     // compile "some.group:artifact:version:classifier"
     // compile "some.group:artifact:version"

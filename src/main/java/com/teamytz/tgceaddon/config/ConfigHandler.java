@@ -20,6 +20,7 @@ public class ConfigHandler {
 
     private static final String CATEGORY_LIGHT = "光效";
     private static final String CATEGORY_IR = "红外";
+    private static final String CATEGORY_GUN_ALERT = "枪声警觉";
 
     private static Configuration config;
 
@@ -37,6 +38,17 @@ public class ConfigHandler {
     public static String[] entityHeatValues = new String[0];
     /** 未在列表中的实体的默认红外热值 */
     public static float defaultEntityHeat = 0.0f;
+    /** 开枪惊动敌对生物的默认警示半径(格) */
+    public static float gunshotAlertRadius = 32.0f;
+    /** 按枪械单独配置警示半径(格式 modid:item:半径) */
+    public static String[] gunshotAlertRadii = new String[0];
+    /** 连续射击时同一玩家两次惊动的最小间隔(tick) */
+    public static int gunshotRateLimit = 20;
+    /** 开枪惊动生物时施加的威胁量 */
+    public static float gunshotAlertThreat = 50.0f;
+
+    /** 按枪械警示半径表(懒加载;小写,支持省略命名空间) */
+    private static java.util.Map<String, Float> gunRadiusMap = null;
 
     public static void init(FMLPreInitializationEvent event) {
         File file = new File(event.getModConfigurationDirectory(), "tgceaddon.cfg");
@@ -71,10 +83,60 @@ public class ConfigHandler {
                 0.0f, 0.0f, 1000.0f,
                 "未列表实体的默认红外热值(0=无红外信号)");
 
+        // ===== 枪声警觉设置(DynamicStealth 适配) =====
+        gunshotAlertRadius = config.getFloat("alertRadius", CATEGORY_GUN_ALERT,
+                32.0f, 0.0f, 500.0f,
+                "开枪惊动敌对生物的默认警示半径(格)");
+        gunshotAlertRadii = config.getStringList("alertRadiusPerGun", CATEGORY_GUN_ALERT,
+                new String[0],
+                "按枪械单独配置警示半径(格式 modid:item:半径,如 techguns:infiltrator:12;0=不惊动)");
+        gunshotRateLimit = config.getInt("rateLimit", CATEGORY_GUN_ALERT,
+                20, 1, 200,
+                "连续射击时同一玩家两次惊动的最小间隔(tick)");
+        gunshotAlertThreat = config.getFloat("alertThreat", CATEGORY_GUN_ALERT,
+                50.0f, 0.0f, 200.0f,
+                "开枪惊动生物时施加的威胁量");
+
         config.save();
 
         // 加载实体红外热值表(供 HeatSourceManager 查询)
         com.teamytz.tgceaddon.tracking.HeatSourceManager.loadConfigEntityHeat();
+        gunRadiusMap = null;
+    }
+
+    /** 某枪械(item 注册名)的开枪警示半径:先查单独配置,否则用默认 */
+    public static float getGunAlertRadius(String itemRegistryName) {
+        if (gunRadiusMap == null) {
+            gunRadiusMap = new java.util.HashMap<>();
+            for (String entry : gunshotAlertRadii) {
+                if (entry == null) {
+                    continue;
+                }
+                String[] p = entry.trim().split(":");
+                if (p.length >= 2) {
+                    try {
+                        gunRadiusMap.put(p[0].toLowerCase(), Float.parseFloat(p[1]));
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+            }
+        }
+        if (itemRegistryName == null) {
+            return gunshotAlertRadius;
+        }
+        String lower = itemRegistryName.toLowerCase();
+        Float v = gunRadiusMap.get(lower);
+        if (v != null) {
+            return v;
+        }
+        int idx = lower.indexOf(':');
+        if (idx >= 0) {
+            v = gunRadiusMap.get(lower.substring(idx + 1));
+            if (v != null) {
+                return v;
+            }
+        }
+        return gunshotAlertRadius;
     }
 
     /** 实体 ID 是否在"强制空中"名单中 */
