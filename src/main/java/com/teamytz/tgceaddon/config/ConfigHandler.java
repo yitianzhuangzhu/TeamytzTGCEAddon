@@ -88,8 +88,8 @@ public class ConfigHandler {
                 32.0f, 0.0f, 500.0f,
                 "开枪惊动敌对生物的默认警示半径(格)");
         gunshotAlertRadii = config.getStringList("alertRadiusPerGun", CATEGORY_GUN_ALERT,
-                new String[0],
-                "按枪械单独配置警示半径(格式 modid:item:半径,如 techguns:infiltrator:12;0=不惊动)");
+                new String[]{"techguns:m4_infiltrator:4"},
+                "按枪械单独配置警示半径(格式 注册名:半径,如 techguns:m4_infiltrator:4;0=不惊动)");
         gunshotRateLimit = config.getInt("rateLimit", CATEGORY_GUN_ALERT,
                 20, 1, 200,
                 "连续射击时同一玩家两次惊动的最小间隔(tick)");
@@ -112,10 +112,16 @@ public class ConfigHandler {
                 if (entry == null) {
                     continue;
                 }
-                String[] p = entry.trim().split(":");
-                if (p.length >= 2) {
+                String entryStr = entry.trim();
+                // 条目格式 "item注册名:半径",例如 "techguns:m4_infiltrator:4"。
+                // 注意枪械注册名本身带冒号(modid:item),因此"半径"取最后一个冒号之后、
+                // 冒号之前(整段,含 modid)才是注册名。
+                int lastColon = entryStr.lastIndexOf(':');
+                if (lastColon > 0 && lastColon < entryStr.length() - 1) {
                     try {
-                        gunRadiusMap.put(p[0].toLowerCase(), Float.parseFloat(p[1]));
+                        String gunKey = entryStr.substring(0, lastColon).trim().toLowerCase();
+                        float radiusVal = Float.parseFloat(entryStr.substring(lastColon + 1).trim());
+                        gunRadiusMap.put(gunKey, radiusVal);
                     } catch (NumberFormatException ignored) {
                     }
                 }
