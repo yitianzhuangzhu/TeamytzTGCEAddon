@@ -1,0 +1,6 @@
+{
+    "parent": "block/cube_all",
+    "textures": {
+        "all": "tgceaddon:blocks/heat_source"
+    }
+}

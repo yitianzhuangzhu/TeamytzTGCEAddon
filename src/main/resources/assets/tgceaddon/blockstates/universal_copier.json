@@ -1,0 +1,9 @@
+{
+    "variants": {
+        "facing=north": { "model": "tgceaddon:universal_copier", "y": 90 },
+        "facing=east": { "model": "tgceaddon:universal_copier", "y": 180 },
+        "facing=south": { "model": "tgceaddon:universal_copier", "y": 270 },
+        "facing=west": { "model": "tgceaddon:universal_copier" },
+        "inventory": { "model": "tgceaddon:universal_copier" }
+    }
+}

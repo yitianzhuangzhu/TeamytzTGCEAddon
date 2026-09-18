@@ -1,0 +1,20 @@
+{
+  "cannon_fire": {
+    "category": "blocks",
+    "subtitle": "tgceaddon.subtitle.cannon_fire",
+    "sounds": [
+      {
+        "name": "tgceaddon:cannon_fire"
+      }
+    ]
+  },
+  "cannon_fire_end": {
+    "category": "blocks",
+    "subtitle": "tgceaddon.subtitle.cannon_fire_end",
+    "sounds": [
+      {
+        "name": "tgceaddon:cannon_fire_end"
+      }
+    ]
+  }
+}
