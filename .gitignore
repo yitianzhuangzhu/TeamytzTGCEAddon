@@ -20,9 +20,9 @@ tmp_decompile/
 temp_jar_extract/
 temp_techguns/
 
-# 第三方依赖资源（从 techguns mod 包解压，构建时可重新获取）
+# 第三方依赖 jar（从 techguns mod 包解压，构建时可重新获取；不公开分发）
 libs/
-assets/
+# 注意：assets（贴图/模型/语言文件）是本 mod 自己的资源，必须入库，不得排除
 
 # 构建/调试产物
 compile.log
