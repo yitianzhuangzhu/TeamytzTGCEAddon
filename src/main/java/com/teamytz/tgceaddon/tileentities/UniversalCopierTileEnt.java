@@ -50,6 +50,14 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
     public static final int FLARE_POWER_PER_TICK = 100;
     public static final int FLARE_OUTPUT_COUNT = 16;
     public static final int FLARE_CRAFT_TIME = 10;
+    // 普通炮塔弹药 HE 高爆弹：120RF/tick × 40tick = 4800RF，每次产出16发（与机炮炮弹同价）
+    public static final int HE_SHELL_POWER_PER_TICK = 120;
+    public static final int HE_SHELL_OUTPUT_COUNT = 16;
+    public static final int HE_SHELL_CRAFT_TIME = 40;
+    // 普通炮塔弹药 APFSDS 穿甲弹：150RF/tick × 60tick = 9000RF，每次产出8发（更贵更慢）
+    public static final int APFSDS_SHELL_POWER_PER_TICK = 150;
+    public static final int APFSDS_SHELL_OUTPUT_COUNT = 8;
+    public static final int APFSDS_SHELL_CRAFT_TIME = 60;
 
     // ===== NBT 标签键名 =====
     private static final String TAG_REGISTERED_TARGETS = "RegisteredTargets";
@@ -275,6 +283,12 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
             if (isFlare(output)) {
                 return FLARE_POWER_PER_TICK;
             }
+            if (isHEShell(output)) {
+                return HE_SHELL_POWER_PER_TICK;
+            }
+            if (isAPFSDSShell(output)) {
+                return APFSDS_SHELL_POWER_PER_TICK;
+            }
         }
         return POWER_PER_TICK;
     }
@@ -306,12 +320,30 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
     }
 
     /**
+     * 判断目标物品是否为 HE 高爆弹（普通炮塔弹药）
+     */
+    private boolean isHEShell(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        return stack.getItem() == ModItems.heShell;
+    }
+
+    /**
+     * 判断目标物品是否为 APFSDS 穿甲弹（普通炮塔弹药）
+     */
+    private boolean isAPFSDSShell(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        return stack.getItem() == ModItems.apfsdsShell;
+    }
+
+    /**
      * 获取目标物品的产出数量
      */
     private int getOutputCount(ItemStack target) {
         if (isBoltAmmo(target)) return BOLT_OUTPUT_COUNT;
         if (isCannonShell(target)) return CANNON_SHELL_OUTPUT_COUNT;
         if (isFlare(target)) return FLARE_OUTPUT_COUNT;
+        if (isHEShell(target)) return HE_SHELL_OUTPUT_COUNT;
+        if (isAPFSDSShell(target)) return APFSDS_SHELL_OUTPUT_COUNT;
         return 1;
     }
 
@@ -321,6 +353,8 @@ public class UniversalCopierTileEnt extends BasicMachineTileEnt {
     private int getCraftTime(ItemStack target) {
         if (isCannonShell(target)) return CANNON_SHELL_CRAFT_TIME;
         if (isFlare(target)) return FLARE_CRAFT_TIME;
+        if (isHEShell(target)) return HE_SHELL_CRAFT_TIME;
+        if (isAPFSDSShell(target)) return APFSDS_SHELL_CRAFT_TIME;
         return CRAFT_TIME;
     }
 

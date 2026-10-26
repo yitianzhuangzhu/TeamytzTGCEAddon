@@ -2,7 +2,6 @@ package com.teamytz.tgceaddon.init;
 
 import com.teamytz.tgceaddon.TGCEAddon;
 import com.teamytz.tgceaddon.item.ItemBlueprint;
-import com.teamytz.tgceaddon.item.ItemTurretUpgrade;
 import net.minecraft.creativetab.CreativeTabs;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -51,6 +50,9 @@ public class ModCreativeTabs
             items.add(ItemBlueprint.createBlueprint(TGItems.ROCKET.copy()));
             // 机炮炮弹蓝图（通用复制机可复制机炮炮弹，BMPT 机炮弹药）
             items.add(ItemBlueprint.createBlueprint(new ItemStack(ModItems.cannonShell)));
+            // 普通炮塔两种弹药的蓝图（通用复制机生产 HE 高爆弹 / APFSDS 穿甲弹）
+            items.add(ItemBlueprint.createBlueprint(new ItemStack(ModItems.heShell)));
+            items.add(ItemBlueprint.createBlueprint(new ItemStack(ModItems.apfsdsShell)));
             // 热诱弹蓝图（通用复制机可复制热诱弹,1000RF 产出 16 个,热诱弹发射器弹药）
             items.add(ItemBlueprint.createBlueprint(new ItemStack(ModItems.flare)));
             // 带 bmpt NBT 的炮塔卡片（放入炮塔控制器卡片槽生成 BMPT 炮塔实体）
@@ -63,8 +65,23 @@ public class ModCreativeTabs
             rolandCard.setTagCompound(new NBTTagCompound());
             rolandCard.getTagCompound().setString("turretType", "roland");
             items.add(rolandCard);
-            // 运算卡片（放入炮塔升级槽,炮塔计算移动目标提前量）
-            items.add(ItemTurretUpgrade.createUpgrade(ItemTurretUpgrade.TYPE_LEAD_COMPUTING));
+            // 炮塔升级卡(turretUpgrade)是单一通用卡,已由 setCreativeTab 自动进入本物品栏,无需手动添加
+            // ===== 0.21.0 新炮塔卡片（模型/贴图已接入；武器与俯仰待实现）=====
+            items.add(createTurretCard("turret"));
+            items.add(createTurretCard("laser_turret"));
+            items.add(createTurretCard("laser_turret_mk1"));
+            items.add(createTurretCard("lightning_turret"));
+            // 0.30.0 M1 主战坦克炮塔（HE/APFSDS 主炮，72 格射程）
+            items.add(createTurretCard("m1"));
+        }
+
+        /** 生成带 turretType NBT 的炮塔卡片（卡片槽放入后生成对应炮塔实体）
+         *  注意：Java 8 不允许匿名类内定义 static 方法，故此处为实例方法 */
+        private ItemStack createTurretCard(String type) {
+            ItemStack card = new ItemStack(ModItems.turretCard);
+            card.setTagCompound(new NBTTagCompound());
+            card.getTagCompound().setString("turretType", type);
+            return card;
         }
     };
 }

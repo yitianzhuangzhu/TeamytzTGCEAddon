@@ -16,6 +16,16 @@ set APP_HOME=%DIRNAME%
 @rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 set DEFAULT_JVM_OPTS=
 
+@rem ---------------------------------------------------------------------------
+@rem No system JDK on this machine: MC 1.12.2 / ForgeGradle 3 needs JDK 8..10.
+@rem If JAVA_HOME is unset, fall back to the portable JDK 8 shipped inside the
+@rem workspace at <workspace>/.tools/jdk8* (see .tools/README.md).
+@rem Machines that already define JAVA_HOME are unaffected.
+@rem ---------------------------------------------------------------------------
+if not defined JAVA_HOME (
+    for /d %%i in ("%DIRNAME%..\..\.tools\jdk8*") do set "JAVA_HOME=%%~fi"
+)
+
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome
 

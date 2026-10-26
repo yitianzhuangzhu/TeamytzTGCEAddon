@@ -10,7 +10,9 @@ import com.teamytz.tgceaddon.item.ItemPureMandate;
 import com.teamytz.tgceaddon.item.ItemStormShield;
 import com.teamytz.tgceaddon.item.ItemTurretCard;
 import com.teamytz.tgceaddon.item.ItemTurretUpgrade;
+import com.teamytz.tgceaddon.item.ItemTurretShell;
 import com.teamytz.tgceaddon.item.weapon.ItemTestPistol;
+import com.teamytz.tgceaddon.item.weapon.ItemTestBeamer;
 import com.teamytz.tgceaddon.item.weapon.ItemChainsword;
 import com.teamytz.tgceaddon.item.weapon.ItemBolter;
 import com.teamytz.tgceaddon.item.weapon.ItemThunderHammer;
@@ -67,6 +69,10 @@ public class ModItems
     public static Item turretCard;
     // 机炮炮弹 - BMPT 炮塔机炮弹药，在弹药输入槽被消耗
     public static Item cannonShell;
+    // HE 高爆弹 - 普通炮塔弹药之一(命中爆炸,实体杀伤半径大,有下坠)
+    public static Item heShell;
+    // APFSDS 尾翼稳定脱壳穿甲弹 - 普通炮塔弹药之一(穿透生物与普通方块,高单体伤害,不爆炸)
+    public static Item apfsdsShell;
     // 过载制导导弹发射器 - 发射受过载限制、可被躲避的制导导弹
     public static Item overloadMissileLauncher;
     // 鞘翅喷气背包 - 科技枪背部槽,提供鞘翅飞行+加速+热信号
@@ -83,6 +89,8 @@ public class ModItems
     public static Item flare;
     // 热诱弹发射器 - 右键生成热诱弹(200 红外热值),消耗热诱弹
     public static Item flareLauncher;
+    // 测试光束枪 - 右键换挡(击晕/击杀/挖掘),套 NDR 模型;模式基类 GenericGunModeBase 的首个实例
+    public static Item testBeamer;
 
     public static void init()
     {
@@ -107,6 +115,9 @@ public class ModItems
         turretCard = registerItem(new ItemTurretCard("turret_card"));
         // 注册机炮炮弹
         cannonShell = registerItem(new ItemCannonShell("cannon_shell"));
+        // 注册普通炮塔的两种炮弹（HE 高爆弹 / APFSDS 穿甲弹）
+        heShell = registerItem(new ItemTurretShell("he_shell"));
+        apfsdsShell = registerItem(new ItemTurretShell("apfsds_shell"));
         // 注册过载制导导弹发射器(锁定发射过载限制导弹)
         ChargedProjectileSelector<OverloadGuidedMissileProjectile> overloadSelector =
                 new ChargedProjectileSelector<>(ModAmmoTypes.ROCKET_OVERLOAD,
@@ -124,7 +135,7 @@ public class ModItems
                 new CommandLineMissileProjectileNuke.Factory());
         commandLineMissileLauncher = registerItem(
                 new ItemCommandLineMissileLauncher("command_line_missile_launcher", cmdSelector));
-        // 注册炮塔升级卡(运算卡片等,通过 NBT 区分类型)
+        // 注册炮塔升级卡(单一通用卡片:装入升级槽即解锁当前炮塔的专属强化)
         turretUpgrade = registerItem(new ItemTurretUpgrade("turret_upgrade"));
         // 注册红外热追踪导弹发射器(两段式锁定发射)
         ProjectileSelector<IRMissileProjectile> irSelector =
@@ -136,6 +147,8 @@ public class ModItems
         flare = registerItem(new ItemFlare("flare"));
         // 注册热诱弹发射器(右键生成热诱弹,消耗热诱弹)
         flareLauncher = registerItem(new ItemFlareLauncher("flare_launcher"));
+        // 注册测试光束枪(0.29.0):右键换挡 击晕/击杀/挖掘,套科技枪 Nuclear Death Ray 的模型与贴图
+        testBeamer = registerItem(new ItemTestBeamer("test_beamer"));
     }
 
     @SubscribeEvent
@@ -199,6 +212,12 @@ public class ModItems
                 ModelLoader.setCustomModelResourceLocation(item, 0,
                     new ModelResourceLocation(TGCEAddon.MODID + ":cannon_shell", "inventory"));
             }
+            else if (item instanceof ItemTurretShell)
+            {
+                // 普通炮塔弹药：模型名与注册名同名（he_shell / apfsds_shell）
+                ModelLoader.setCustomModelResourceLocation(item, 0,
+                    new ModelResourceLocation(TGCEAddon.MODID + ":" + item.getRegistryName().getResourcePath(), "inventory"));
+            }
             else if (item instanceof ItemOverloadMissileLauncher)
             {
                 ((ItemOverloadMissileLauncher) item).registerModel();
@@ -235,6 +254,13 @@ public class ModItems
             {
                 ModelLoader.setCustomModelResourceLocation(item, 0,
                     new ModelResourceLocation(TGCEAddon.MODID + ":flare_launcher", "inventory"));
+            }
+            else if (item instanceof ItemTestBeamer)
+            {
+                // 与链锯剑同款：inventory 图标走 JSON 模型，实际持握/GUI 外观由
+                // ClientProxy.registerItemRenderers 里注册的 RenderGunBase90 + ModelNDR（NDR 模型）渲染
+                ModelLoader.setCustomModelResourceLocation(item, 0,
+                    new ModelResourceLocation(TGCEAddon.MODID + ":test_beamer", "inventory"));
             }
         }
     }

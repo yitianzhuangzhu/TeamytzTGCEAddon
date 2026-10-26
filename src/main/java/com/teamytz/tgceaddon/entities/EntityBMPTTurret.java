@@ -44,7 +44,7 @@ import java.util.UUID;
  * - 弹药从模型对应发射位射出（左右炮管口、左右导弹巢口），随 yawHead 旋转
  * - 开火消耗：RF（master 能量）、火箭弹（TGItems.ROCKET，master 弹药输入槽）；机炮弹药暂不消耗
  */
-public class EntityBMPTTurret extends EntityCreature {
+public class EntityBMPTTurret extends EntityCreature implements ITurretEntity {
 
     private static final DataParameter<Integer> FACING =
             EntityDataManager.createKey(EntityBMPTTurret.class, DataSerializers.VARINT);
@@ -372,14 +372,14 @@ public class EntityBMPTTurret extends EntityCreature {
 
     /**
      * 计算实际瞄准点:
-     * - 未安装运算卡片:目标当前位置(中心+眼高)
-     * - 安装运算卡片(lead_computing):计算移动目标提前量——
+     * - 未安装炮塔升级卡:目标当前位置(中心+眼高)
+     * - 安装炮塔升级卡:计算移动目标提前量——
      *   按炮弹飞行时间预测目标未来位置(迭代两次收敛),朝提前量位置开火,
      *   解决机炮对空中移动目标"永远打不中"的问题
      */
     private Vec3d getAimPoint(EntityLivingBase target) {
         TurretBaseTileEntMaster master = getMasterTile();
-        if (master == null || !master.hasUpgrade(com.teamytz.tgceaddon.item.ItemTurretUpgrade.TYPE_LEAD_COMPUTING)) {
+        if (master == null || !master.hasUpgrade()) {
             return new Vec3d(target.posX, target.posY + target.getEyeHeight(), target.posZ);
         }
         // 预测:目标当前位置 + 目标速度 × 炮弹飞行时间(距离/弹速)
@@ -589,7 +589,8 @@ public class EntityBMPTTurret extends EntityCreature {
         return MathHelper.wrapDegrees(current + (diff > 0.0F ? maxDelta : -maxDelta));
     }
 
-    private TurretBaseTileEntMaster getMasterTile() {
+    @Override
+    public TurretBaseTileEntMaster getMasterTile() {
         if (this.masterPos == null) {
             return null;
         }
@@ -601,9 +602,16 @@ public class EntityBMPTTurret extends EntityCreature {
      * 红石信号需求是否满足（master 的红石模式：0=忽略总是工作，1=需要高信号，2=需要低信号）
      * 不满足时炮塔不索敌、不开火、原地回正
      */
-    private boolean isRedstoneAllowed() {
+    @Override
+    public boolean isRedstoneAllowed() {
         TurretBaseTileEntMaster master = getMasterTile();
         return master != null && master.isRedstoneEnabled();
+    }
+
+    /** 卡片类型标识（见 {@link ITurretEntity}）：基座用它判断卡片与已生成炮塔是否一致 */
+    @Override
+    public String getTurretType() {
+        return this.turretType;
     }
 
     @Override

@@ -2,30 +2,47 @@ package com.teamytz.tgceaddon.proxy;
 
 import com.teamytz.tgceaddon.TGCEAddon;
 import com.teamytz.tgceaddon.client.models.armor.ModelStormShield;
+import com.teamytz.tgceaddon.client.models.machines.ModelLaserTurret;
+import com.teamytz.tgceaddon.client.models.machines.ModelLaserTurretMark1;
+import com.teamytz.tgceaddon.client.models.machines.ModelLightningTurret;
+import com.teamytz.tgceaddon.client.render.entities.RenderM1Turret;
+import com.teamytz.tgceaddon.client.models.machines.ModelTurret;
 import com.teamytz.tgceaddon.client.render.entities.RenderBMPTTurret;
-import com.teamytz.tgceaddon.client.render.entities.RenderFlare;
+import com.teamytz.tgceaddon.client.render.entities.RenderBaseTurret;
 import com.teamytz.tgceaddon.client.render.entities.RenderMuzzleLight;
 import com.teamytz.tgceaddon.client.render.entities.RenderRolandTurret;
 import com.teamytz.tgceaddon.client.render.entities.projectiles.RenderBoltProjectile;
 import com.teamytz.tgceaddon.client.render.entities.projectiles.RenderCannonShellProjectile;
+import com.teamytz.tgceaddon.client.render.entities.projectiles.RenderHEShellProjectile;
+import com.teamytz.tgceaddon.client.render.entities.projectiles.RenderAPFSDSShellProjectile;
 import com.teamytz.tgceaddon.client.render.entities.projectiles.RenderRolandNukeMissile;
 import com.teamytz.tgceaddon.client.render.item.RenderBolter;
 import com.teamytz.tgceaddon.client.render.item.RenderChainsword;
 import com.teamytz.tgceaddon.client.render.item.RenderThunderHammer;
 import com.teamytz.tgceaddon.client.render.item.RenderPowerSword;
 import com.teamytz.tgceaddon.client.render.item.RenderStormShield;
+import com.teamytz.tgceaddon.entities.EntityBaseTurret;
 import com.teamytz.tgceaddon.entities.EntityBMPTTurret;
-import com.teamytz.tgceaddon.entities.EntityFlare;
+import com.teamytz.tgceaddon.entities.EntityLaserTurret;
+import com.teamytz.tgceaddon.entities.EntityLaserTurretMark1;
+import com.teamytz.tgceaddon.entities.EntityLightningTurret;
+import com.teamytz.tgceaddon.entities.EntityM1Turret;
 import com.teamytz.tgceaddon.entities.EntityMuzzleLight;
 import com.teamytz.tgceaddon.entities.EntityRolandTurret;
+import com.teamytz.tgceaddon.entities.EntityTurret;
 import com.teamytz.tgceaddon.entities.projectiles.BMPTGuidedMissileProjectile;
 import com.teamytz.tgceaddon.entities.projectiles.BoltProjectile;
 import com.teamytz.tgceaddon.entities.projectiles.CannonShellProjectile;
+import com.teamytz.tgceaddon.entities.projectiles.APFSDSShellProjectile;
+import com.teamytz.tgceaddon.entities.projectiles.HEShellProjectile;
 import com.teamytz.tgceaddon.entities.projectiles.OverloadGuidedMissileProjectile;
 import com.teamytz.tgceaddon.entities.projectiles.CommandLineMissileProjectile;
 import com.teamytz.tgceaddon.entities.projectiles.IRMissileProjectile;
 import com.teamytz.tgceaddon.entities.projectiles.RolandMissileProjectile;
 import com.teamytz.tgceaddon.entities.projectiles.RolandMissileProjectileNuke;
+import com.teamytz.tgceaddon.entities.projectiles.TurretLaserBeamProjectile;
+import com.teamytz.tgceaddon.entities.projectiles.TurretOverloadLaserBeamProjectile;
+import com.teamytz.tgceaddon.entities.projectiles.ModeBeamProjectile;
 import com.teamytz.tgceaddon.entities.projectiles.CommandLineMissileProjectileNuke;
 import com.teamytz.tgceaddon.init.ModItems;
 import com.teamytz.tgceaddon.item.ItemStormShield;
@@ -54,6 +71,8 @@ import techguns.client.render.item.RenderGunBase90;
 import techguns.client.render.fx.ScreenEffect;
 import techguns.client.render.entities.projectiles.RenderRocketProjectile;
 import techguns.client.models.guns.ModelGuidedMissileLauncher;
+import techguns.client.models.guns.ModelNDR;
+import techguns.client.render.entities.projectiles.RenderNDRProjectile;
 import techguns.client.render.AdditionalSlotRenderRegistry;
 import techguns.client.render.RenderAdditionalSlotItem;
 import com.teamytz.tgceaddon.client.models.armor.ModelElytraJetpack;
@@ -99,9 +118,45 @@ public class ClientProxy extends CommonProxy
         RenderingRegistry.registerEntityRenderingHandler(BMPTGuidedMissileProjectile.class, RenderRocketProjectile::new);
         // 注册动态光源实体渲染器(不渲染任何东西,只作为 OptiFine 动态光源载体)
         RenderingRegistry.registerEntityRenderingHandler(EntityMuzzleLight.class, RenderMuzzleLight::new);
-        // 注册热诱弹渲染器(火焰贴图十字四边形)
-        RenderingRegistry.registerEntityRenderingHandler(EntityFlare.class, RenderFlare::new);
+        // 热诱弹不注册渲染器:它的外观完全由原版岩浆大粒子(EnumParticleTypes.LAVA)构成,
+        // 见 EntityFlare.spawnLavaParticle —— 注册了反而会多画一层实体模型。
+
+        // ===== 0.21.0 新炮塔渲染器 =====
+        // 通用渲染器 RenderBaseTurret:传入模型 + 贴图 + 模型上移像素数。
+        // 上移像素取 EntityBaseTurret.RENDER_TRANSLATE_PX(=25)，与实体的炮口坐标换算共用同一常量，
+        // 避免两处各写一个数字而失配（配合实体锚点 +17/16，模型底部落在 master 上方 1.125 格）。
+        RenderingRegistry.registerEntityRenderingHandler(EntityTurret.class,
+                rm -> new RenderBaseTurret<>(rm, new ModelTurret(), tex("turret"), EntityBaseTurret.RENDER_TRANSLATE_PX));
+        RenderingRegistry.registerEntityRenderingHandler(EntityLaserTurret.class,
+                rm -> new RenderBaseTurret<>(rm, new ModelLaserTurret(), tex("laser_turret"), EntityBaseTurret.RENDER_TRANSLATE_PX));
+        RenderingRegistry.registerEntityRenderingHandler(EntityLaserTurretMark1.class,
+                rm -> new RenderBaseTurret<>(rm, new ModelLaserTurretMark1(), tex("laser_turret_mark1"), EntityBaseTurret.RENDER_TRANSLATE_PX));
+        RenderingRegistry.registerEntityRenderingHandler(EntityLightningTurret.class,
+                rm -> new RenderBaseTurret<>(rm, new ModelLightningTurret(), tex("lightning_turret"), EntityBaseTurret.RENDER_TRANSLATE_PX));
+        // M1 主战坦克炮塔（0.30.0）：专用渲染器（主炮俯仰 + 机枪方向机/高低 + 主炮后坐力 四通道）
+        RenderingRegistry.registerEntityRenderingHandler(EntityM1Turret.class, RenderM1Turret::new);
+
+        // 激光炮塔 Mk.1 的光束弹丸：复用科技枪的激光光束渲染器（子类是 LaserProjectile，渲染器泛型兼容）
+        RenderingRegistry.registerEntityRenderingHandler(TurretLaserBeamProjectile.class,
+                techguns.client.render.entities.projectiles.RenderLaserProjectile::new);
+        RenderingRegistry.registerEntityRenderingHandler(TurretOverloadLaserBeamProjectile.class,
+                techguns.client.render.entities.projectiles.RenderLaserProjectile::new);
+
+        // 普通炮塔的两种炮弹（0.27.0）：用实体模型画弹丸本身（科技枪画火箭弹的那套做法）
+        RenderingRegistry.registerEntityRenderingHandler(HEShellProjectile.class, RenderHEShellProjectile::new);
+        RenderingRegistry.registerEntityRenderingHandler(APFSDSShellProjectile.class, RenderAPFSDSShellProjectile::new);
+
+        // 测试光束枪的弹丸（0.29.0）：子类是 NDRProjectile，直接复用科技枪的 NDR 光束渲染器
+        //（十字面片 + 螺旋缠绕带 + nukebeam.png 竖排 17 帧动画）
+        RenderingRegistry.registerEntityRenderingHandler(ModeBeamProjectile.class,
+                RenderNDRProjectile::new);
+
         TGCEAddon.getLogger().info("实体渲染器注册完成");
+    }
+
+    /** 炮塔实体贴图路径:textures/entities/&lt;name&gt;.png */
+    private static net.minecraft.util.ResourceLocation tex(String name) {
+        return new net.minecraft.util.ResourceLocation(TGCEAddon.MODID, "textures/entities/" + name + ".png");
     }
     
     @Override
@@ -214,6 +269,21 @@ public class ClientProxy extends CommonProxy
                                 {0f, 0f, -0.04f}
                         })
                         .setMuzzleFXPos3P(0.09f, -0.26f));
+
+        // 注册测试光束枪渲染器(0.29.0):直接套科技枪 Nuclear Death Ray 的模型与手持参数,
+        // 贴图也在 ItemTestBeamer 里指向 techguns:textures/guns/ndr.png
+        ItemRenderHack.registerItemRenderer(ModItems.testBeamer,
+                new RenderGunBase90(new ModelNDR(), 1)
+                        .setBaseTranslation(1f, -0.2f, RenderItemBase.SCALE * 1.5f - 0.09f)
+                        .setBaseScale(1.2f).setGUIScale(0.32f)
+                        .setMuzzleFx(ScreenEffect.muzzleFlashNukeBeam, 0f, 0.19f, -1.4f, 0.65f, 0f)
+                        .setTransformTranslations(new float[][]{
+                                {0.1f, 0.02f, -0.05f},   //First Person
+                                {-0.01f, 0.04f, 0.25f},  //Third Person
+                                {0.11f, -0.08f, 0.1f},   //GUI
+                                {0f, 0f, 0.15f},         //Ground
+                                {-0.23f, -0.08f, -0.05f} //frame
+                        }).setMuzzleFXPos3P(0.15f, -0.77f).setRecoilAnim(GunAnimation.swayRecoil, 0.025f, 0.75f));
 
         // 注册鞘翅喷气背包背部槽渲染(自定义模型,粒子喷口位置针对鞘翅飞行姿态修正)
         AdditionalSlotRenderRegistry.register(ModItems.elytraJetpack,

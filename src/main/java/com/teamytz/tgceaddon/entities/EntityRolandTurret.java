@@ -48,7 +48,7 @@ import java.util.UUID;
  * - 引导:发射时炮塔视线可达目标 → 导弹持续引导;视线被挡 → 导弹失导惯性飞行(大号火箭弹)
  * - 俯仰角限制:仰角 90°(可正对头顶)/ 俯角 20°(MC 语义 pitch:负=抬头、正=低头 → 范围 [-90, +20])
  */
-public class EntityRolandTurret extends EntityCreature {
+public class EntityRolandTurret extends EntityCreature implements ITurretEntity {
 
     private static final DataParameter<Integer> FACING =
             EntityDataManager.createKey(EntityRolandTurret.class, DataSerializers.VARINT);
@@ -354,7 +354,7 @@ public class EntityRolandTurret extends EntityCreature {
         // 调试(每 60 tick):无论弹药是否充足都输出输入槽状态,区分"没弹药"与"AI 未到达发射"
         if (TGCEAddon.DEBUG_IR && this.ticksExisted % 60 == 0) {
             ItemStack nukeRef = techguns.TGItems.ROCKET_NUKE;
-            boolean upgradeOk = master.hasUpgrade(com.teamytz.tgceaddon.item.ItemTurretUpgrade.TYPE_LEAD_COMPUTING);
+            boolean upgradeOk = master.hasUpgrade();
             StringBuilder sb = new StringBuilder("[罗兰][调试] 升级卡=" + upgradeOk
                     + " ROCKET_NUKE参考="
                     + (nukeRef.isEmpty() ? "空" : nukeRef.getItem().getRegistryName() + "@" + nukeRef.getItemDamage())
@@ -376,7 +376,7 @@ public class EntityRolandTurret extends EntityCreature {
         }
         // 弹药选择:有核火箭且安装了炮塔升级卡 → 发射核导弹变体;否则普通火箭
         // (升级卡门控:没有升级卡即使装了核弹也只能发射普通导弹)
-        boolean upgradeOk = master.hasUpgrade(com.teamytz.tgceaddon.item.ItemTurretUpgrade.TYPE_LEAD_COMPUTING);
+        boolean upgradeOk = master.hasUpgrade();
         boolean nuke = upgradeOk && master.hasNukeAmmo();
         // 关键修复:先检查能量与弹药是否充足,不足则不消耗任何东西。
         // 旧逻辑先消耗 300 能量再检查弹药,无弹药时会每 tick 白耗能量直到耗尽,
@@ -482,7 +482,8 @@ public class EntityRolandTurret extends EntityCreature {
         return MathHelper.wrapDegrees(current + (diff > 0.0F ? maxDelta : -maxDelta));
     }
 
-    private TurretBaseTileEntMaster getMasterTile() {
+    @Override
+    public TurretBaseTileEntMaster getMasterTile() {
         if (this.masterPos == null) {
             return null;
         }
@@ -490,9 +491,16 @@ public class EntityRolandTurret extends EntityCreature {
         return te instanceof TurretBaseTileEntMaster ? (TurretBaseTileEntMaster) te : null;
     }
 
-    private boolean isRedstoneAllowed() {
+    @Override
+    public boolean isRedstoneAllowed() {
         TurretBaseTileEntMaster master = getMasterTile();
         return master != null && master.isRedstoneEnabled();
+    }
+
+    /** 卡片类型标识（见 {@link ITurretEntity}）：基座用它判断卡片与已生成炮塔是否一致 */
+    @Override
+    public String getTurretType() {
+        return this.turretType;
     }
 
     @Override

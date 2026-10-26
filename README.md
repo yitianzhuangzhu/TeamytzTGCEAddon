@@ -32,10 +32,33 @@
 
 ## 开发信息
 
-- **版本**: 0.30.2
+- **版本**: 0.30.2（真值在 `build.gradle` 的 `version` 与 `TGCEAddon.VERSION`，两处必须一致）
 - **Minecraft版本**: 1.12.2
-- **Forge版本**: 14.23.5.2860
+- **Forge版本**: 14.23.5.2860（ForgeGradle 3 / Gradle 4.9 / MCP snapshot 20171003-1.12 / Java 8）
+- **前置**: 科技枪社区版 2.2.0.1（`libs/techguns-2.2.0.1.jar`，compileOnly）
 - **开发团队**: TeamYTZ
+
+### 版本号规则
+
+`0.<大更新>.<小更新或修复>`：功能成体系地增加时进位中间位，修 bug / 调表现只加末位。
+**每次改动都要升版本号**，并同步 `build.gradle` 与 `TGCEAddon.VERSION` 两处。
+
+### 构建与回档
+
+```powershell
+# 构建（本机无系统 JDK，gradlew.bat 会自动用工作区 .tools/ 里的便携 JDK 8）
+cd TeamytzTGCEAddonP-main\TeamytzTGCEAddon
+.\gradlew.bat build          # 产物 build\libs\tgceaddon-<版本>.jar（已 reobf，旧版本不删）
+
+# 回档（仓库根 = 工作区根 S:\mc\mod\TGCEAddon）
+git log --oneline            # 看每次更新的版本与说明
+git show <提交>              # 看某次改了什么
+git revert <提交>            # 撤销某次改动（保留历史，推荐）
+git checkout <提交> -- <路径>  # 只把某个文件恢复到某个版本
+```
+
+每次 mod 更新完成后：升版本号 → `gradlew.bat build` → 同步到测试实例
+`G:\MC\.minecraft\versions\tgaddontest\mods`（**删掉旧版本 jar，只留新的**）→ `git commit`。
 
 ## 许可证
 

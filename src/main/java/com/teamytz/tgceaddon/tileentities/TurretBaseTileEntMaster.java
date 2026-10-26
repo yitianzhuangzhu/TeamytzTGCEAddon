@@ -1,8 +1,8 @@
 package com.teamytz.tgceaddon.tileentities;
 
 import com.teamytz.tgceaddon.TGCEAddon;
-import com.teamytz.tgceaddon.entities.EntityBMPTTurret;
-import com.teamytz.tgceaddon.entities.EntityRolandTurret;
+import com.teamytz.tgceaddon.entities.ITurretEntity;
+import com.teamytz.tgceaddon.entities.TurretRegistry;
 import com.teamytz.tgceaddon.init.BlockTurretBase;
 import com.teamytz.tgceaddon.init.BlockTurretBaseSlave;
 import com.teamytz.tgceaddon.init.ModItems;
@@ -85,6 +85,8 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
     private String lastDebugCardType = "";
     /** 结构完整性自检计时器(每 10 tick 一次) */
     private int integrityCheckTimer = 0;
+    /** 生成失败(卡片类型未登记)时记住该类型，避免每 tick 重试刷日志 */
+    private String failedCardType = "";
 
     public TurretBaseTileEntMaster() {
         super(SLOT_UPGRADE + 1, false, MAX_POWER);
@@ -177,19 +179,31 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
         }
 
         if (wantTurret) {
+            // 卡片类型被换掉（bmpt <-> roland，或世界重载后找回的是另一种炮塔）：
+            // 旧实体与卡片不符时先拆掉，稍后按新类型重建。
+            // 修复：旧逻辑只判断"有没有实体"，换卡片后炮塔不会变（继续用旧炮塔）。
+            if (this.mountedTurret != null && !mountedMatchesCard(cardType)) {
+                TGCEAddon.getLogger().info("[debug][炮塔] 卡片类型与已生成炮塔不符(卡片=" + cardType
+                        + ", 炮塔=" + typeOfTurret(this.mountedTurret) + ")，重建实体 (master@" + this.pos + ")");
+                this.killTurretEntity();
+            }
             if (this.mountedTurret == null) {
                 // 世界重载后尝试按 UUID 找回已保存的实体
                 if (this.mountedTurretUUID != null) {
                     for (Entity ent : this.world.loadedEntityList) {
-                        if ((ent instanceof EntityBMPTTurret || ent instanceof EntityRolandTurret)
-                                && ent.getUniqueID().equals(this.mountedTurretUUID)) {
+                        // 走 ITurretEntity 接口判定：加新炮塔时无需再改这里
+                        if (ent instanceof ITurretEntity
+                                && ent.getUniqueID().equals(this.mountedTurretUUID)
+                                && cardType.equals(((ITurretEntity) ent).getTurretType())) {
                             this.mountedTurret = ent;
                             break;
                         }
                     }
                 }
             }
-            if (this.mountedTurret == null) {
+            if (this.mountedTurret == null && !cardType.equals(this.failedCardType)) {
+                // 未登记的类型在 spawnTurretEntity 里会记 failedCardType，
+                // 避免每 tick 重试 + 刷日志（20 条/秒）
                 this.spawnTurretEntity();
             }
         } else if (this.mountedTurret != null) {
@@ -197,18 +211,33 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
         }
     }
 
+    /** 已生成的炮塔实体是否与卡片类型一致（无实体/无类型视为不一致） */
+    private boolean mountedMatchesCard(String cardType) {
+        return this.mountedTurret instanceof ITurretEntity
+                && cardType.equals(((ITurretEntity) this.mountedTurret).getTurretType());
+    }
+
+    /** 读实体的炮塔类型，仅用于日志（非炮塔实体返回 "非炮塔实体"） */
+    private static String typeOfTurret(Entity entity) {
+        return entity instanceof ITurretEntity ? ((ITurretEntity) entity).getTurretType() : "非炮塔实体";
+    }
+
     /**
-     * 在 master 上方生成炮塔实体(按卡片类型:bmpt → BMPT 炮塔,roland → 罗兰防空系统)
+     * 在 master 上方生成炮塔实体。
+     * 类型 → 实体由 {@link TurretRegistry} 决定（不再硬编码 if-else），
+     * 未登记的类型不生成任何实体并记日志（不回退到默认类型，避免"卡片与炮塔不符"）。
      */
     private void spawnTurretEntity() {
-        Entity turret;
         String cardType = getCardType();
-        if ("roland".equals(cardType)) {
-            turret = new EntityRolandTurret(this.world, this.pos, this.multiblockDirection);
-        } else {
-            // 默认/bmpt
-            turret = new EntityBMPTTurret(this.world, this.pos, this.multiblockDirection);
+        Entity turret = TurretRegistry.create(cardType, this.world, this.pos, this.multiblockDirection);
+        if (turret == null) {
+            this.failedCardType = cardType;   // 记住失败的类型，不再每 tick 重试
+            TGCEAddon.getLogger().warn("[炮塔] 未知的炮塔卡片类型 '" + cardType + "'，未生成实体 (master@"
+                    + this.pos + ")。已登记类型: " + TurretRegistry.types()
+                    + " —— 新增炮塔需在 TurretRegistry 登记，并在 ModEntities 注册实体 id");
+            return;
         }
+        this.failedCardType = "";
         boolean spawned = this.world.spawnEntity(turret);
         this.mountedTurret = turret;
         this.mountedTurretUUID = turret.getUniqueID();
@@ -263,10 +292,13 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
     }
 
     /**
-     * 升级槽中是否安装了指定类型的升级卡
+     * 升级槽里是否装了炮塔升级卡
+     *
+     * 升级卡不区分类型（0.26.1 起为单一通用卡）：装了卡，就由当场那座炮塔
+     * 自行解锁它的专属强化（见 ItemTurretUpgrade 类注释）。
      */
-    public boolean hasUpgrade(String type) {
-        return com.teamytz.tgceaddon.item.ItemTurretUpgrade.getUpgradeType(getUpgrade()).equals(type);
+    public boolean hasUpgrade() {
+        return com.teamytz.tgceaddon.item.ItemTurretUpgrade.isUpgrade(getUpgrade());
     }
 
     // ===== GUI 按钮事件（科技枪 PacketGuiButtonClick -> tile.buttonClicked）=====
@@ -324,6 +356,24 @@ public class TurretBaseTileEntMaster extends BasicPoweredTileEnt implements ITic
      */
     public boolean consumeRocketAmmo() {
         return InventoryUtil.consumeAmmo(this.inventory, TGItems.ROCKET,
+                SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE);
+    }
+
+    /**
+     * 弹药输入槽中是否有指定弹药（通用版，按 ItemStack 模板匹配）
+     * 注意:InventoryUtil.canConsumeItem 返回 0 表示"找到足够弹药",>0 表示不足
+     */
+    public boolean hasAmmo(ItemStack template) {
+        return InventoryUtil.canConsumeItem(this.inventory, template,
+                SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE) <= 0;
+    }
+
+    /**
+     * 消耗一发指定弹药（通用版，从弹药输入槽扣）
+     * 新弹药类型用这一对即可，不必再写 hasXxxAmmo/consumeXxxAmmo
+     */
+    public boolean consumeAmmo(ItemStack template) {
+        return InventoryUtil.consumeAmmo(this.inventory, template,
                 SLOT_INPUT1, SLOT_INPUT1 + INPUTS_SIZE);
     }
 
